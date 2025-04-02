@@ -83,12 +83,17 @@ class XShare:
         return wave_highs_index, wave_lows_index
 
     @staticmethod
-    def __analyze_single(code, socket_market):
+    def back_test(code, end_date, market=0):
+        return XShare.__analyze_single(code, market, end_date)
+
+    @staticmethod
+    def __analyze_single(code, socket_market, end_date=''):
         try:
             df = pd.DataFrame()
             str_high = ''
             str_low = ''
             str_close = ''
+            date_loc = ''
             if socket_market == 0:
                 if not XShare.__filteringCode(code):
                     return False
@@ -96,17 +101,27 @@ class XShare:
                 str_high = '最高'
                 str_low = '最低'
                 str_close = '收盘'
+                date_loc = '日期'
             if socket_market == 1:
                 df = ak.stock_hk_daily(symbol=code, adjust="qfq")
                 str_high = 'high'
                 str_low = 'low'
                 str_close = 'close'
+                date_loc = 'date'
 
             if len(df) < XShare.__RECORD_COUNT:
                 return False
 
-            # 获取150条记录
-            df_tail_150 = df.tail(XShare.__RECORD_COUNT)
+            # 判断是否需要回测
+            if len(end_date) == 0:
+                df_tail_150 = df.tail(XShare.__RECORD_COUNT)
+            else:
+                df['date'] = pd.to_datetime(df[date_loc])  # 转换日期列
+                target_date = pd.to_datetime(end_date)
+                # target_date = pd.to_datetime('2024-05-06')
+                target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
+                start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
+                df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
 
             # 转成字典
             df_dict = df_tail_150.to_dict(orient='records')
@@ -116,9 +131,11 @@ class XShare:
             if pre_doc[str_high] > today_doc[str_high]:
                 return False
 
+            stock_info = {}
             nSubWindow = [2, 3]
-            for item in nSubWindow:
-                highs_index, lows_index = XShare.__getWavePoints(df_tail_150, item, str_high, str_low)
+            for n in nSubWindow:
+                stock_info.clear()
+                highs_index, lows_index = XShare.__getWavePoints(df_tail_150, n, str_high, str_low)
 
                 if len(highs_index) < 2 or len(highs_index) < 2:
                     return False
@@ -237,11 +254,13 @@ class XShare:
 file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
 if __name__ == '__main__':
-    resultA = XShare.analysisA()
-    with open(file_path, 'w') as file:
-        # 将数组的每个元素写入文件，每个元素占一行
-        for item in resultA:
-            file.write(f'{item}\n')
+    ret = XShare.back_test('600529', '2024-12-11')
+    print(ret)
 
-    print("A股分析结果:", resultA)
-  
+    # resultA = XShare.analysisA()
+    # with open(file_path, 'w') as file:
+    #     # 将数组的每个元素写入文件，每个元素占一行
+    #     for item in resultA:
+    #         file.write(f'{item}\n')
+    #
+    # print("A股分析结果:", resultA)
