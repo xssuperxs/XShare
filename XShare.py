@@ -157,12 +157,10 @@ class XShare:
                 if preHighIndex > preLowIndex:
                     today_low = today_doc[str_low]
                     pre_low = pre_doc[str_low]
-                    if today_low > preLowPrice or pre_low > preLowPrice:
-                        continue
                     if today_low < pre_low:
                         preLowPrice = today_low
                         preLowIndex = XShare.__RECORD_COUNT - 1
-                    else:
+                    if pre_low < pre_low:
                         preLowIndex = XShare.__RECORD_COUNT - 2
                         preLowPrice = pre_low
                 else:
@@ -254,13 +252,13 @@ class XShare:
 file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
 if __name__ == '__main__':
-    ret = XShare.back_test('600529', '2024-12-11')
-    print(ret)
+    # ret = XShare.back_test('600095', '2025-01-23')
+    # print(ret)
 
-    # resultA = XShare.analysisA()
-    # with open(file_path, 'w') as file:
-    #     # 将数组的每个元素写入文件，每个元素占一行
-    #     for item in resultA:
-    #         file.write(f'{item}\n')
-    #
-    # print("A股分析结果:", resultA)
+    resultA = XShare.analysisA()
+    with open(file_path, 'w') as file:
+        # 将数组的每个元素写入文件，每个元素占一行
+        for item in resultA:
+            file.write(f'{item}\n')
+
+    print("A股分析结果:", resultA)
