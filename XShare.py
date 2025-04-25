@@ -1,4 +1,3 @@
-import math
 import string
 import time
 
@@ -10,6 +9,9 @@ from ta.trend import MACD
 import threading
 from queue import Queue
 import pandas as pd
+
+import pymongo
+from datetime import datetime
 
 
 class XShare:
@@ -89,25 +91,20 @@ class XShare:
     @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
         try:
-            df = pd.DataFrame()
-            str_high = ''
-            str_low = ''
-            str_close = ''
-            date_loc = ''
+
+            str_high = '最高' if socket_market == 0 else 'high'
+            str_low = '最低' if socket_market == 0 else 'low'
+            str_open = '开盘' if socket_market == 0 else 'open'
+            str_close = '收盘' if socket_market == 0 else 'close'
+            str_date = '日期' if socket_market == 0 else 'date'
+
+            df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
+            if socket_market == 1:
+                df = ak.stock_hk_daily(symbol=code, adjust="qfq")
+
             if socket_market == 0:
                 if not XShare.__filteringCode(code):
                     return False
-                df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
-                str_high = '最高'
-                str_low = '最低'
-                str_close = '收盘'
-                date_loc = '日期'
-            if socket_market == 1:
-                df = ak.stock_hk_daily(symbol=code, adjust="qfq")
-                str_high = 'high'
-                str_low = 'low'
-                str_close = 'close'
-                date_loc = 'date'
 
             if len(df) < XShare.__RECORD_COUNT:
                 return False
@@ -116,7 +113,7 @@ class XShare:
             if len(end_date) == 0:
                 df_tail_150 = df.tail(XShare.__RECORD_COUNT)
             else:
-                df['date'] = pd.to_datetime(df[date_loc])  # 转换日期列
+                df['date'] = pd.to_datetime(df[str_date])  # 转换日期列
                 target_date = pd.to_datetime(end_date)
                 # target_date = pd.to_datetime('2024-05-06')
                 target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
@@ -127,8 +124,14 @@ class XShare:
             df_dict = df_tail_150.to_dict(orient='records')
 
             today_doc = df_dict[-1]
-            pre_doc = df_dict[-2]
-            if pre_doc[str_high] > today_doc[str_high]:
+            yesterday_doc = df_dict[-2]
+
+            today_open_price = today_doc[str_open]
+            today_close_price = today_doc[str_close]
+            today_high_price = today_doc[str_high]
+            today_low_price = today_doc[str_low]
+
+            if yesterday_doc[str_high] > today_high_price:
                 return False
 
             stock_info = {}
@@ -151,18 +154,28 @@ class XShare:
                 if today_doc[str_high] <= preHighPrice:
                     continue
 
-                if pre_doc[str_high] >= preHighPrice:
+                if yesterday_doc[str_high] >= preHighPrice:
                     continue
 
                 if preHighIndex > preLowIndex:
-                    today_low = today_doc[str_low]
-                    pre_low = pre_doc[str_low]
-                    if today_low < pre_low:
-                        preLowPrice = today_low
+
+                    is_pullback = (today_high_price - today_close_price) > (today_close_price - today_low_price)
+                    is_high_open_low_close = today_close_price < today_open_price
+
+                    if not is_pullback and not is_high_open_low_close:
+                        if socket_market == 1:
+                            continue
+                        else:
+                            trading_volume = today_doc["成交额"]
+                            if trading_volume < 100000000:
+                                continue
+
+                    if today_low_price < preLowPrice:
+                        preLowPrice = today_low_price
                         preLowIndex = XShare.__RECORD_COUNT - 1
-                    if pre_low < pre_low:
+                    if yesterday_doc[str_low] < preLowPrice:
                         preLowIndex = XShare.__RECORD_COUNT - 2
-                        preLowPrice = pre_low
+                        preLowPrice = yesterday_doc[str_low]
                 else:
                     if preLowPrice > preLow2Price:
                         continue
@@ -212,6 +225,8 @@ class XShare:
 
         # 将股票代码分组
         groups = np.array_split(stock_codes, max(1, len(stock_codes) // 10))
+        # groups = np.array_split(stock_codes, 1)
+        # print(len(groups))
         # 用于存储结果的队列
         result_queue = Queue()
 
@@ -251,11 +266,29 @@ class XShare:
 
 file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
+# pip install akshare --upgrade
+
 if __name__ == '__main__':
-    # ret = XShare.back_test('600095', '2025-01-23')
+    # ret = XShare.back_test('300385', '2025-04-24')
+    # ret = XShare.back_test('601216', '2025-04-24')
     # print(ret)
 
     resultA = XShare.analysisA()
+
+    # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@127.0.0.1:28018/")
+    mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
+    db = mongoDBCli['ashare']
+    # 分析结果的集合
+    coll_analysis_Results = db['analysis_results']
+
+    data = {
+        "type1": resultA,
+        "type2": [],
+        "analysis_date": datetime.now()
+    }
+    coll_analysis_Results.insert_one(data)
+
+    print("A股分析结果数量:", len(resultA))
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
         for item in resultA:
