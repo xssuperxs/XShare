@@ -90,14 +90,13 @@ class XShare:
 
     @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
+        str_high = '最高' if socket_market == 0 else 'high'
+        str_low = '最低' if socket_market == 0 else 'low'
+        str_open = '开盘' if socket_market == 0 else 'open'
+        str_close = '收盘' if socket_market == 0 else 'close'
+        str_date = '日期' if socket_market == 0 else 'date'
+
         try:
-
-            str_high = '最高' if socket_market == 0 else 'high'
-            str_low = '最低' if socket_market == 0 else 'low'
-            str_open = '开盘' if socket_market == 0 else 'open'
-            str_close = '收盘' if socket_market == 0 else 'close'
-            str_date = '日期' if socket_market == 0 else 'date'
-
             df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
             if socket_market == 1:
                 df = ak.stock_hk_daily(symbol=code, adjust="qfq")
@@ -144,10 +143,12 @@ class XShare:
                     return False
 
                 preHighIndex = highs_index[-1]
+                # preHigh2Index = highs_index[-2]
                 preLowIndex = lows_index[-1]
                 preLow2Index = lows_index[-2]
 
                 preHighPrice = df_dict[preHighIndex][str_high]
+                # preHigh2Price = df_dict[preHigh2Index][str_high]
                 preLowPrice = df_dict[preLowIndex][str_low]
                 preLow2Price = df_dict[preLow2Index][str_low]
 
@@ -269,29 +270,29 @@ file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 # pip install akshare --upgrade
 
 if __name__ == '__main__':
-    # ret = XShare.back_test('300385', '2025-04-24')
+    ret = XShare.back_test('600529', '2024-12-10')
     # ret = XShare.back_test('601216', '2025-04-24')
-    # print(ret)
+    print(ret)
 
-    resultA = XShare.analysisA()
-
-    # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@127.0.0.1:28018/")
-    mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
-    db = mongoDBCli['ashare']
-    # 分析结果的集合
-    coll_analysis_Results = db['analysis_results']
-
-    data = {
-        "type1": resultA,
-        "type2": [],
-        "analysis_date": datetime.now()
-    }
-    coll_analysis_Results.insert_one(data)
-
-    print("A股分析结果数量:", len(resultA))
-    with open(file_path, 'w') as file:
-        # 将数组的每个元素写入文件，每个元素占一行
-        for item in resultA:
-            file.write(f'{item}\n')
-
-    print("A股分析结果:", resultA)
+    # resultA = XShare.analysisA()
+    #
+    # # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@127.0.0.1:28018/")
+    # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
+    # db = mongoDBCli['ashare']
+    # # 分析结果的集合
+    # coll_analysis_Results = db['analysis_results']
+    #
+    # data = {
+    #     "type1": resultA,
+    #     "type2": [],
+    #     "analysis_date": datetime.now()
+    # }
+    # coll_analysis_Results.insert_one(data)
+    #
+    # print("A股分析结果数量:", len(resultA))
+    # with open(file_path, 'w') as file:
+    #     # 将数组的每个元素写入文件，每个元素占一行
+    #     for item in resultA:
+    #         file.write(f'{item}\n')
+    #
+    # print("A股分析结果:", resultA)
