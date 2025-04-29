@@ -265,34 +265,36 @@ class XShare:
         return str_results
 
 
-file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
+def analysisAndSave(market=0):
+
+    file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
+    resultA = XShare.analysisA(market)
+    mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
+    db = mongoDBCli['ashare']
+
+    # 分析结果的集合
+    coll_analysis_Results = db['analysis_results']
+
+    data = {
+        "type1": resultA,
+        "type2": [],
+        "analysis_date": datetime.now()
+    }
+    # 把数据写入到数据库
+    coll_analysis_Results.insert_one(data)
+
+    print("股票个数:", len(resultA))
+    with open(file_path, 'w') as file:
+        # 将数组的每个元素写入文件，每个元素占一行
+        for item in resultA:
+            file.write(f'{item}\n')
+
+    print("股票列表:", resultA)
+
 
 # pip install akshare --upgrade
 
 if __name__ == '__main__':
-    ret = XShare.back_test('600529', '2024-12-10')
-    # ret = XShare.back_test('601216', '2025-04-24')
-    print(ret)
+    # print(XShare.back_test('600529', '2024-12-10'))
 
-    # resultA = XShare.analysisA()
-    #
-    # # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@127.0.0.1:28018/")
-    # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
-    # db = mongoDBCli['ashare']
-    # # 分析结果的集合
-    # coll_analysis_Results = db['analysis_results']
-    #
-    # data = {
-    #     "type1": resultA,
-    #     "type2": [],
-    #     "analysis_date": datetime.now()
-    # }
-    # coll_analysis_Results.insert_one(data)
-    #
-    # print("A股分析结果数量:", len(resultA))
-    # with open(file_path, 'w') as file:
-    #     # 将数组的每个元素写入文件，每个元素占一行
-    #     for item in resultA:
-    #         file.write(f'{item}\n')
-    #
-    # print("A股分析结果:", resultA)
+    analysisAndSave(0)
