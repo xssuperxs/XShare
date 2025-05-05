@@ -89,12 +89,103 @@ class XShare:
         return XShare.__analyze_single(code, market, end_date)
 
     @staticmethod
+    def __strategy_BottomUpFlip(df_tail_150, stock_info: dict, socket_market):
+
+        df_dict = df_tail_150.to_dict(orient='records')
+
+        today_doc = df_dict[-1]
+        yesterday_doc = df_dict[-2]
+
+        str_open = stock_info.get('str_open')
+        str_close = stock_info.get('str_close')
+        str_high = stock_info.get('str_high')
+        str_low = stock_info.get('str_low')
+
+        today_open_price = today_doc[str_open]
+        today_close_price = today_doc[str_close]
+        today_high_price = today_doc[str_high]
+        today_low_price = today_doc[str_low]
+
+        # 获取成交额
+        trading_volume = today_doc["成交额"] if socket_market == 0 else today_doc["volume"] * today_doc["low"]
+
+        # 小于6000W 的不要
+        if trading_volume < 60000000:
+            return False
+
+        if yesterday_doc[str_high] > today_high_price:
+            return False
+
+        nSubWindow = [2, 3]
+        for n in nSubWindow:
+            highs_index, lows_index = XShare.__getWavePoints(df_tail_150, n, str_high, str_low)
+
+            if len(highs_index) < 2 or len(highs_index) < 2:
+                return False
+
+            preHighIndex = highs_index[-1]
+            preLowIndex = lows_index[-1]
+            preLow2Index = lows_index[-2]
+
+            preHighPrice = df_dict[preHighIndex][str_high]
+            preLowPrice = df_dict[preLowIndex][str_low]
+            preLow2Price = df_dict[preLow2Index][str_low]
+
+            if today_doc[str_high] <= preHighPrice:
+                continue
+
+            if yesterday_doc[str_high] >= preHighPrice:
+                continue
+
+            if preHighIndex > preLowIndex:
+
+                is_pullback = (today_high_price - today_close_price) > (today_close_price - today_low_price)
+                is_high_open_low_close = today_close_price < today_open_price
+
+                if not is_pullback and not is_high_open_low_close:
+                    if socket_market == 1:
+                        continue
+                    else:
+                        trading_volume = today_doc["成交额"]
+                        if trading_volume < 100000000:
+                            continue
+
+                if today_low_price < preLowPrice:
+                    preLowPrice = today_low_price
+                    preLowIndex = XShare.__RECORD_COUNT - 1
+                if yesterday_doc[str_low] < preLowPrice:
+                    preLowIndex = XShare.__RECORD_COUNT - 2
+                    preLowPrice = yesterday_doc[str_low]
+            else:
+                if preLowPrice > preLow2Price:
+                    continue
+
+            macd = MACD(close=df_tail_150[str_close], window_fast=12, window_slow=26, window_sign=9)
+
+            if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
+                continue
+            pre_high_dea = macd.macd_signal().iloc[preHighIndex]
+
+            if pre_high_dea > 0:
+                continue
+
+            # 获取最低点向前的N条记录
+            subset = df_tail_150.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
+            min_last_N = subset[str_low].min()
+            if preLowPrice <= min_last_N:
+                return True
+        return False
+
+    @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
-        str_high = '最高' if socket_market == 0 else 'high'
-        str_low = '最低' if socket_market == 0 else 'low'
-        str_open = '开盘' if socket_market == 0 else 'open'
-        str_close = '收盘' if socket_market == 0 else 'close'
-        str_date = '日期' if socket_market == 0 else 'date'
+        stock_info_dict = {
+            'str_high': '最高' if socket_market == 0 else 'high',
+            'str_low': '最低' if socket_market == 0 else 'low',
+            'str_open': '开盘' if socket_market == 0 else 'open',
+            'str_close': '收盘' if socket_market == 0 else 'close',
+            'str_date': '日期' if socket_market == 0 else 'date',
+            'str_volume': '成交量' if socket_market == 0 else 'volume'
+        }
 
         try:
             df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
@@ -112,94 +203,22 @@ class XShare:
             if len(end_date) == 0:
                 df_tail_150 = df.tail(XShare.__RECORD_COUNT)
             else:
-                df['date'] = pd.to_datetime(df[str_date])  # 转换日期列
+                df['date'] = pd.to_datetime(df[stock_info_dict.get('str_date')])  # 转换日期列
                 target_date = pd.to_datetime(end_date)
                 # target_date = pd.to_datetime('2024-05-06')
                 target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
                 start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
                 df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
 
-            # 转成字典
-            df_dict = df_tail_150.to_dict(orient='records')
-
-            today_doc = df_dict[-1]
-            yesterday_doc = df_dict[-2]
-
-            today_open_price = today_doc[str_open]
-            today_close_price = today_doc[str_close]
-            today_high_price = today_doc[str_high]
-            today_low_price = today_doc[str_low]
-
-            if yesterday_doc[str_high] > today_high_price:
-                return False
-
-            stock_info = {}
-            nSubWindow = [2, 3]
-            for n in nSubWindow:
-                stock_info.clear()
-                highs_index, lows_index = XShare.__getWavePoints(df_tail_150, n, str_high, str_low)
-
-                if len(highs_index) < 2 or len(highs_index) < 2:
-                    return False
-
-                preHighIndex = highs_index[-1]
-                # preHigh2Index = highs_index[-2]
-                preLowIndex = lows_index[-1]
-                preLow2Index = lows_index[-2]
-
-                preHighPrice = df_dict[preHighIndex][str_high]
-                # preHigh2Price = df_dict[preHigh2Index][str_high]
-                preLowPrice = df_dict[preLowIndex][str_low]
-                preLow2Price = df_dict[preLow2Index][str_low]
-
-                if today_doc[str_high] <= preHighPrice:
-                    continue
-
-                if yesterday_doc[str_high] >= preHighPrice:
-                    continue
-
-                if preHighIndex > preLowIndex:
-
-                    is_pullback = (today_high_price - today_close_price) > (today_close_price - today_low_price)
-                    is_high_open_low_close = today_close_price < today_open_price
-
-                    if not is_pullback and not is_high_open_low_close:
-                        if socket_market == 1:
-                            continue
-                        else:
-                            trading_volume = today_doc["成交额"]
-                            if trading_volume < 100000000:
-                                continue
-
-                    if today_low_price < preLowPrice:
-                        preLowPrice = today_low_price
-                        preLowIndex = XShare.__RECORD_COUNT - 1
-                    if yesterday_doc[str_low] < preLowPrice:
-                        preLowIndex = XShare.__RECORD_COUNT - 2
-                        preLowPrice = yesterday_doc[str_low]
-                else:
-                    if preLowPrice > preLow2Price:
-                        continue
-
-                macd = MACD(close=df_tail_150[str_close], window_fast=12, window_slow=26, window_sign=9)
-
-                if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
-                    continue
-                pre_high_dea = macd.macd_signal().iloc[preHighIndex]
-
-                if pre_high_dea > 0:
-                    continue
-
-                # 获取最低点向前的N条记录
-                subset = df_tail_150.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-                min_last_N = subset[str_low].min()
-                if preLowPrice <= min_last_N:
-                    return True
+            # 破低翻
+            if XShare.__strategy_BottomUpFlip(df_tail_150, stock_info_dict, socket_market):
+                return 1
+            # if XShare.__strategy_BottomUpFlip(df_tail_150, stock_info_dict, socket_market):
+            #     return 2
+            return False
         except Exception as e:
-            # 捕获所有异常并打印错误信息
             print(f"股票代码 {code} 处理失败，错误: {e}")
             return False
-        return False
 
     @staticmethod
     def analysisA(market=0):
@@ -266,7 +285,6 @@ class XShare:
 
 
 def analysisAndSave(market=0):
-
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
     resultA = XShare.analysisA(market)
     mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
@@ -295,6 +313,6 @@ def analysisAndSave(market=0):
 # pip install akshare --upgrade
 
 if __name__ == '__main__':
-    # print(XShare.back_test('600529', '2024-12-10'))
+    print(XShare.back_test('605136', '2024-07-11'))
 
-    analysisAndSave(0)
+    # analysisAndSave(0)

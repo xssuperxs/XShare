@@ -27,12 +27,12 @@ stock_zh_a_hist_df = ak.stock_zh_a_hist(
     period="daily",
     adjust="qfq"
 )
-成交额_int = stock_zh_a_hist_df["成交额"].astype('int64')
+成交额_int = stock_zh_a_hist_df["成交量"].astype('int64')
 print(成交额_int)
 
-# hk_df = ak.stock_hk_daily(symbol='00700', adjust="qfq")
+hk_df = ak.stock_hk_daily(symbol='00700', adjust="qfq")
 #
-# print(hk_df)
+print(hk_df)
 
 
 # 成交额
