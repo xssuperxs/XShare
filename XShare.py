@@ -13,6 +13,9 @@ import pandas as pd
 import pymongo
 from datetime import datetime
 
+import subprocess
+import sys
+
 
 class XShare:
     # 滑动窗口
@@ -121,7 +124,7 @@ class XShare:
         :param df_tail_150:   最近 150天的交易记录
         :param stock_info:    需要用到的列  low high ...
         :param socket_market: 0 是A股 1是港股
-        :return:  bool  true is successful
+        :return:  bool
         """
         df_dict = df_tail_150.to_dict(orient='records')
 
@@ -141,7 +144,7 @@ class XShare:
         # 获取成交额
         trading_volume = today_doc["成交额"] if socket_market == 0 else today_doc["volume"] * today_doc["low"]
 
-        # 小于6000W 的不要
+        # 成交额小于6000W 的不要
         if trading_volume < 60000000:
             return False
 
@@ -171,23 +174,23 @@ class XShare:
 
             if preHighIndex > preLowIndex:
 
-                is_pullback = (today_high_price - today_close_price) > (today_close_price - today_low_price)
-                is_high_open_low_close = today_close_price < today_open_price
+                # 冲高回落
+                is_pullback = (today_high_price - today_close_price) / abs(today_close_price - today_open_price) > 1.6
+                # 高开低走
+                is_high_to_low = today_close_price < today_open_price
+                # 昨天的最低价
+                yesterday_low = yesterday_doc[str_low]
 
-                if not is_pullback and not is_high_open_low_close:
-                    if socket_market == 1:
-                        continue
-                    else:
-                        trading_volume = today_doc["成交额"]
-                        if trading_volume < 100000000:
-                            continue
+                if is_pullback or is_high_to_low or today_low_price < preLowPrice or yesterday_low < preLowPrice:
+                    if today_low_price < preLowPrice:
+                        preLowPrice = today_low_price
+                        preLowIndex = XShare.__RECORD_COUNT - 1
+                    if yesterday_doc[str_low] < preLowPrice:
+                        preLowIndex = XShare.__RECORD_COUNT - 2
+                        preLowPrice = yesterday_doc[str_low]
+                else:
+                    continue
 
-                if today_low_price < preLowPrice:
-                    preLowPrice = today_low_price
-                    preLowIndex = XShare.__RECORD_COUNT - 1
-                if yesterday_doc[str_low] < preLowPrice:
-                    preLowIndex = XShare.__RECORD_COUNT - 2
-                    preLowPrice = yesterday_doc[str_low]
             else:
                 if preLowPrice > preLow2Price:
                     continue
@@ -355,8 +358,22 @@ def analysisAndSave(market=0):
 
 
 # pip install akshare --upgrade
+def update_packet():
+    """
+    更新需要的包
+    :return:
+    """
+    subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL)
+    # 安装或升级 akshare
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL)
+
 
 if __name__ == '__main__':
+    # 更新 akshare
+    update_packet()
+    # 回测用
     print(XShare.back_test('605136', '2024-07-12'))
-
+    # 开始分析
     # analysisAndSave(0)
