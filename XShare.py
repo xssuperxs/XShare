@@ -27,6 +27,11 @@ class XShare:
     # 过滤股票代码
     @staticmethod
     def __filteringCode(stock_code: string):
+        """
+        过滤A股股票
+        :param stock_code: code
+        :return: true
+        """
         if stock_code.startswith('8'):
             return False
         if stock_code.startswith('4'):
@@ -39,6 +44,12 @@ class XShare:
 
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
+        """
+        提取波段的高低点
+        :param input_list: high or low  list
+        :param nCount: 滑动窗口
+        :return: 提取好的 list
+        """
         # 计算每个元素出现的次数
         count_dict = Counter(input_list)
         # 筛选出出现次数大于3的元素
@@ -47,6 +58,15 @@ class XShare:
 
     @staticmethod
     def __getWavePoints(records, subWindowSize, high_flag, low_flag):
+        """
+        计算波段的高低点
+        :param records:  要计算的记录
+        :param subWindowSize: 滑动窗口
+        :param high_flag:  最高价 字段的 名称
+        :param low_flag:   最低价 字段的 名称
+        :return:
+        """
+
         # 开始提出150条数据 进行计算
         window_highs_index = []
         window_lows_index = []
@@ -86,11 +106,23 @@ class XShare:
 
     @staticmethod
     def back_test(code, end_date, market=0):
+        """
+        回测用
+        :param code: 代码
+        :param end_date: 结束时间
+        :param market: 市场代码  0 或  1   默认0 中国A股 1 港股
+        :return:
+        """
         return XShare.__analyze_single(code, market, end_date)
 
     @staticmethod
-    def __strategy_BottomUpFlip(df_tail_150, stock_info: dict, socket_market):
-
+    def __strategy_bottomUpFlip(df_tail_150, stock_info: dict, socket_market):
+        """
+        :param df_tail_150:   最近 150天的交易记录
+        :param stock_info:    需要用到的列  low high ...
+        :param socket_market: 0 是A股 1是港股
+        :return:  bool  true is successful
+        """
         df_dict = df_tail_150.to_dict(orient='records')
 
         today_doc = df_dict[-1]
@@ -177,6 +209,14 @@ class XShare:
         return False
 
     @staticmethod
+    def __strategy_double_bottom(df_tail_150, stock_info: dict, socket_market):
+        pass
+
+    @staticmethod
+    def __strategy_new_high(df_tail_150, stock_info: dict, socket_market):
+        pass
+
+    @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
         stock_info_dict = {
             'str_high': '最高' if socket_market == 0 else 'high',
@@ -211,10 +251,14 @@ class XShare:
                 df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
 
             # 破低翻
-            if XShare.__strategy_BottomUpFlip(df_tail_150, stock_info_dict, socket_market):
+            if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info_dict, socket_market):
                 return 1
-            # if XShare.__strategy_BottomUpFlip(df_tail_150, stock_info_dict, socket_market):
+            # # 双底
+            # if XShare.__strategy_double_bottom(df_tail_150, stock_info_dict, socket_market):
             #     return 2
+            # # 创新高试盘
+            # if XShare.__strategy_new_high(df_tail_150, stock_info_dict, socket_market):
+            #     return 3
             return False
         except Exception as e:
             print(f"股票代码 {code} 处理失败，错误: {e}")
@@ -313,6 +357,6 @@ def analysisAndSave(market=0):
 # pip install akshare --upgrade
 
 if __name__ == '__main__':
-    print(XShare.back_test('605136', '2024-07-11'))
+    print(XShare.back_test('605136', '2024-07-12'))
 
     # analysisAndSave(0)
