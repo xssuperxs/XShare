@@ -373,11 +373,12 @@ class XShare:
             final_results.extend(result_queue.get())
 
         # 使用 item() 方法转换
-        str_results = [x.item() for x in final_results]
+        # str_results = [x.item() for x in final_results]
+        print(final_results)
 
         elapsed = time.time() - start_time
         print(f"\n分析完成! 总耗时: {elapsed:.2f}秒")
-        return str_results
+        return final_results
 
 
 def analysisAndSave(market=0):
@@ -423,7 +424,7 @@ if __name__ == '__main__':
     # 更新 akshare
     update_packet()
     # 回测用
-    # print(XShare.back_test('000100', '2025-04-29'))
-    print(XShare.back_test('605136', '2024-07-12'))
-    # 开始分析
+    print(XShare.back_test('002579', '2025-05-06'))
+    # print(XShare.back_test('605136', '2024-07-12'))
+    #开始分析
     # analysisAndSave(0)
