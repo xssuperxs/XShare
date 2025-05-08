@@ -167,6 +167,10 @@ class XShare:
                 preLowIndex = XShare.__RECORD_COUNT - 2
                 preLowPrice = yesterday_low
 
+            # 前低索引要大
+            if preHighIndex > preLowIndex:
+                continue
+
             # 判断是不是破底翻
             if preLowPrice > preLow2Price:
                 continue
@@ -182,7 +186,7 @@ class XShare:
 
             # 获取最低点向前的N条记录
             subset = df_tail_150.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-            min_last_N = subset[stock_info.get('str_low')].min()
+            min_last_N = subset[str_low].min()
             if preLowPrice <= min_last_N:
                 return True
         return False
@@ -215,12 +219,11 @@ class XShare:
         pass
 
     @staticmethod
-    def __strategy_new_high(df_tail_150, stock_info: dict, socket_market):
+    def __strategy_new_high(df_tail_150, stock_info: dict):
         """
         创新高 试盘
         :param df_tail_150:
         :param stock_info:
-        :param socket_market:
         :return:
         """
         if not stock_info:
@@ -308,8 +311,8 @@ class XShare:
             # if XShare.__strategy_double_bottom(df_tail_150, stock_info_dict, socket_market):
             #     return 2
             # # 创新高试盘
-            # if XShare.__strategy_new_high(df_tail_150, stock_info_dict, socket_market):
-            #     return 3
+            if XShare.__strategy_new_high(df_tail_150, stock_info):
+                return 3
             return False
         except Exception as e:
             print(f"股票代码 {code} 处理失败，错误: {e}")
@@ -368,22 +371,33 @@ class XShare:
             t.join()
 
         # 收集所有结果
-        final_results = []
+        analysis_results = []
         while not result_queue.empty():
-            final_results.extend(result_queue.get())
+            analysis_results.extend(result_queue.get())
 
-        # 使用 item() 方法转换
-        # str_results = [x.item() for x in final_results]
-        print(final_results)
+        str_results = [(x, str(y)) for x, y in analysis_results]
 
         elapsed = time.time() - start_time
         print(f"\n分析完成! 总耗时: {elapsed:.2f}秒")
-        return final_results
+        return str_results
 
 
 def analysisAndSave(market=0):
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
     resultA = XShare.analysisA(market)
+
+    # 使用字典来存储分组结果
+    groups = {}
+    for num, code in resultA:
+        if num not in groups:
+            groups[num] = []
+        groups[num].append(code)
+
+    # 提取分组
+    group1 = groups.get(1, [])
+    group2 = groups.get(2, [])
+    group3 = groups.get(3, [])
+
     mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
     db = mongoDBCli['ashare']
 
@@ -391,17 +405,26 @@ def analysisAndSave(market=0):
     coll_analysis_Results = db['analysis_results']
 
     data = {
-        "type1": resultA,
-        "type2": [],
+        "type1": group1,
+        "type2": group2,
+        "type3": group3,
         "analysis_date": datetime.now()
     }
     # 把数据写入到数据库
     coll_analysis_Results.insert_one(data)
 
+    print(type(group1))
+
+    print("破底翻:", group1)
+    print("双 底:", group2)
+    print("创新高:", group3)
+
+    print(group1 + group2 + group3)
+
     print("股票个数:", len(resultA))
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
-        for item in resultA:
+        for item in group1:
             file.write(f'{item}\n')
 
     print("股票列表:", resultA)
@@ -424,7 +447,7 @@ if __name__ == '__main__':
     # 更新 akshare
     update_packet()
     # 回测用
-    print(XShare.back_test('002579', '2025-05-06'))
+    # print(XShare.back_test('002579', '2025-05-06'))
     # print(XShare.back_test('605136', '2024-07-12'))
-    #开始分析
-    # analysisAndSave(0)
+    # 开始分析
+    analysisAndSave(0)
