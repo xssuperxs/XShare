@@ -336,6 +336,7 @@ class XShare:
         # 港股
         if market == 1:
             stock_hk_df = ak.stock_hk_spot_em()
+            # 去掉没有成交量的
             stock_hk_df = stock_hk_df.dropna(subset=['今开'])
             stock_hk_df = stock_hk_df.dropna(subset=['成交量'])
             stock_hk_df = stock_hk_df.dropna(subset=['成交额'])
@@ -343,8 +344,7 @@ class XShare:
 
         # 将股票代码分组
         groups = np.array_split(stock_codes, max(1, len(stock_codes) // 10))
-        # groups = np.array_split(stock_codes, 1)
-        # print(len(groups))
+
         # 用于存储结果的队列
         result_queue = Queue()
 
@@ -383,10 +383,20 @@ class XShare:
 
 
 def analysisAndSave(market=0):
+    # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
+
+    print('正在更新库...')
+    subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL)
+    # 安装或升级 akshare
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL)
+
+    print('开始执行分析...')
     resultA = XShare.analysisA(market)
 
-    # 使用字典来存储分组结果
+    # 处理分析结果 使用字典来存储分组结果
     groups = {}
     for num, code in resultA:
         if num not in groups:
@@ -413,39 +423,22 @@ def analysisAndSave(market=0):
     # 把数据写入到数据库
     coll_analysis_Results.insert_one(data)
 
-    print(type(group1))
+    print("破底翻 ", len(group1), '只:', group1)
+    print("双 底 ", len(group2), '只:', group2)
+    print("创新高 ", len(group3), '只:', group3)
 
-    print("破底翻:", group1)
-    print("双 底:", group2)
-    print("创新高:", group3)
+    # 只输出破底翻
+    out_results = group1
+    # 输出3全部的分析结果 3种全保留
+    # out_results = group1 + group2 + group3
 
-    print(group1 + group2 + group3)
-
-    print("股票个数:", len(resultA))
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
-        for item in group1:
+        for item in out_results:
             file.write(f'{item}\n')
-
-    print("股票列表:", resultA)
-
-
-# pip install akshare --upgrade
-def update_packet():
-    """
-    更新需要的包
-    :return:
-    """
-    subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL)
-    # 安装或升级 akshare
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"], stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':
-    # 更新 akshare
-    update_packet()
     # 回测用
     # print(XShare.back_test('002579', '2025-05-06'))
     # print(XShare.back_test('605136', '2024-07-12'))
