@@ -16,6 +16,8 @@ from datetime import datetime
 import subprocess
 import sys
 
+from tqdm import tqdm
+
 
 class XShare:
     # 滑动窗口
@@ -418,11 +420,21 @@ class XShare:
             t.start()
             threads.append(t)
 
+        # with tqdm(total=len(stock_codes), desc="分析进度") as pbar:
+        #     processed_stocks = 0
+        #     while processed_stocks < len(stock_codes):
+        #         # 从队列获取已完成的结果组
+        #         while not result_queue.empty():
+        #             results = result_queue.get()
+        #             processed_stocks += len(results)  # 实际完成的股票数
+        #             pbar.update(len(results))  # 更新进度条
+        #         time.sleep(0.1)  # 避免空转
+
         # 等待所有线程完成
         for t in threads:
             t.join()
 
-        # 收集所有结果
+        # # 收集所有结果
         analysis_results = []
         while not result_queue.empty():
             analysis_results.extend(result_queue.get())
@@ -438,7 +450,7 @@ def analysisAndSave(market=0):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print('更新所需库...')
+    print('更新库...')
     subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
     # 安装或升级 akshare
