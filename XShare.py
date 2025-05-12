@@ -214,7 +214,20 @@ class XShare:
 
     @staticmethod
     def __strategy_double_bottom(df_tail_150, stock_info: dict):
+        """
+        分析 双底结构
+        :param df_tail_150: 最近的150=条记录
+        :param stock_info: 股票相关信息
+        :return: bool
+        """
+        if not stock_info:
+            return False
+
         wave_info = XShare.__get_wave_info(df_tail_150, 3, stock_info.get('str_high'), stock_info.get('str_low'))
+
+        if not wave_info:
+            return False
+
         preHighIndex = wave_info.get('preHighIndex')
         preLowIndex = wave_info.get('preLowIndex')
 
@@ -253,26 +266,33 @@ class XShare:
     @staticmethod
     def __strategy_new_high(df_tail_150, stock_info: dict):
         """
-        创新高 试盘
-        :param df_tail_150:
-        :param stock_info:
-        :return:
+           分析 创新高试盘
+           :param df_tail_150: 最近的150=条记录
+           :param stock_info: 股票相关信息
+           :return: bool
         """
+        # 创新高的天数
+        n_days = 60
         if not stock_info:
             return False
 
+        df_last_60 = df_tail_150.iloc[-n_days:]
+        df_last_59 = df_tail_150.iloc[-n_days:-1]
         today_high = stock_info.get('today_high')
+        yesterday_high = stock_info.get('yesterday_high')
         today_close = stock_info.get('today_close')
 
-        # 用3的子窗口
-        wave_info = XShare.__get_wave_info(df_tail_150, 3, stock_info.get('str_high'), stock_info.get('str_low'))
+        high_max60 = df_last_60[stock_info.get('str_high')].max()
+        high_max59 = df_last_59[stock_info.get('str_high')].max()
 
-        if today_high < wave_info.get('preHighPrice'):
+        # 判断当天不是60天新高 直接返回
+        if today_high != high_max60:
             return False
-        if stock_info.get('yesterday_high') >= wave_info.get('preHighPrice'):
+        # 最天新高不能是60天新高
+        if yesterday_high == high_max59:
             return False
 
-        # 冲商回落
+        # 判断K线形态   冲商回落
         is_pullback = (today_high - today_close) * 1.6 > abs(today_high - stock_info.get('today_low'))
         # 高开低走
         is_high_to_low = today_close < stock_info.get('today_open')
@@ -472,7 +492,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    print(XShare.back_test('000625', '2024-09-18'))
+    # print(XShare.back_test('601012', '2025-01-22'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析
-    # analysisAndSave(0)
+    analysisAndSave(0)
