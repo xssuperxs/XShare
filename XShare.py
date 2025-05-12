@@ -27,7 +27,6 @@ class XShare:
     # 创新低天数
     __NEW_LOW_DAYS = 30
 
-    # 过滤股票代码
     @staticmethod
     def __filteringCode(stock_code: string):
         """
@@ -214,9 +213,42 @@ class XShare:
         return wave_info
 
     @staticmethod
-    def __strategy_double_bottom(df_tail_150, stock_info: dict, socket_market):
+    def __strategy_double_bottom(df_tail_150, stock_info: dict):
+        wave_info = XShare.__get_wave_info(df_tail_150, 3, stock_info.get('str_high'), stock_info.get('str_low'))
+        preHighIndex = wave_info.get('preHighIndex')
+        preLowIndex = wave_info.get('preLowIndex')
 
-        pass
+        preHighPrice = wave_info.get('preHighPrice')
+        today_high = stock_info.get('today_high')
+
+        # 今天的价不要过前高
+        if today_high >= preHighPrice:
+            return False
+        # 前低点索引 要小于 前高点索引
+        if preHighIndex < preLowIndex:
+            return False
+        # 前高点 到 今日最小要3天
+        if (XShare.__RECORD_COUNT - preHighIndex) < 3:
+            return False
+
+        macd = MACD(close=df_tail_150[stock_info.get('str_close')], window_fast=12, window_slow=26, window_sign=9)
+        if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
+            return False
+        pre_high_dea = macd.macd_signal().iloc[preHighIndex]
+        pre_low_dea = macd.macd_signal().iloc[preLowIndex]
+        today_dea = macd.macd_signal().iloc[XShare.__RECORD_COUNT - 1]
+
+        # 慢线要慢慢抬高
+        if pre_low_dea > today_dea:
+            return False
+        #  慢线不能上0轴
+        if pre_high_dea > 0:
+            return False
+        # 高点到今日的 MACD  hist
+        for i in range(preHighIndex, XShare.__RECORD_COUNT):
+            if macd.macd_diff().iloc[i] < 0:
+                return False
+        return True
 
     @staticmethod
     def __strategy_new_high(df_tail_150, stock_info: dict):
@@ -300,17 +332,17 @@ class XShare:
             }
             today_trading_volume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc[
                 "low"]
-
-            if today_trading_volume < 60000000:
+            # 成交额 小于 5千万的 不要
+            if today_trading_volume < 50000000:
                 return False
 
             # 破低翻
             if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
                 return 1
-            # # 双底
-            # if XShare.__strategy_double_bottom(df_tail_150, stock_info_dict, socket_market):
-            #     return 2
-            # # 创新高试盘
+            # 双底
+            if XShare.__strategy_double_bottom(df_tail_150, stock_info):
+                return 2
+            # 创新高试盘
             if XShare.__strategy_new_high(df_tail_150, stock_info):
                 return 3
             return False
@@ -386,7 +418,7 @@ def analysisAndSave(market=0):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print('正在更新库...')
+    print('更新所需库...')
     subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
     # 安装或升级 akshare
@@ -440,7 +472,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    # print(XShare.back_test('002579', '2025-05-06'))
+    print(XShare.back_test('000625', '2024-09-18'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析
-    analysisAndSave(0)
+    # analysisAndSave(0)
