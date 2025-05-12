@@ -352,6 +352,7 @@ class XShare:
                 'str_high': str_high,
                 'str_low': str_low,
             }
+
             today_trading_volume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc[
                 "low"]
             # 成交额 小于 5千万的 不要
@@ -450,14 +451,14 @@ def analysisAndSave(market=0):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print('更新库...')
+    print('update akshare...')
     subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
     # 安装或升级 akshare
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"], stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL)
 
-    print('开始执行分析...')
+    print('begin analyzing....')
     resultA = XShare.analysisA(market)
 
     # 处理分析结果 使用字典来存储分组结果
@@ -494,7 +495,7 @@ def analysisAndSave(market=0):
     # 只输出破底翻
     out_results = group1
     # 输出3全部的分析结果 3种全保留
-    # out_results = group1 + group2 + group3
+    out_results = group1 + group2 + group3
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
