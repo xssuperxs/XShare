@@ -20,8 +20,8 @@ from tqdm import tqdm
 
 
 class XShare:
-    # 滑动窗口
-    __WINDOW_SIZE = 4
+    # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整
+    __WINDOW_SIZE = 6
     # 记录数
     __RECORD_COUNT = 150
     # 上市天数
@@ -139,7 +139,9 @@ class XShare:
         if yesterday_high > today_high:
             return False
 
-        nSubWindow = [2, 3]
+        # 获取需要的时间窗口
+        nSubWindow = [i for i in range(2, XShare.__WINDOW_SIZE)]
+
         for n in nSubWindow:
 
             wave_info = XShare.__get_wave_info(df_tail_150, n, str_high, str_low)
@@ -505,7 +507,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    # print(XShare.back_test('601012', '2025-01-22'))
+    print(XShare.back_test('600150', '2025-05-12'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析
-    analysisAndSave(0)
+    # analysisAndSave(0)
