@@ -227,14 +227,6 @@ class XShare:
         :return: bool
         """
 
-        # def is_within_2_percent(a, b):
-        #     if a == 0 and b == 0:
-        #         return True
-        #     if a == 0 or b == 0:
-        #         return False
-        #
-        #     return relative_diff <= 0.02
-
         if not stock_info:
             return False
 
@@ -334,11 +326,11 @@ class XShare:
                 'str_low': str_low,
             }
 
-            # today_trading_volume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc[
-            #     "low"]
-            # # 成交额 小于 5千万的 不要
-            # if today_trading_volume < 50000000:
-            #     return False
+            today_tVolume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc["low"]
+
+            # 成交额 小于 5千万的 不要
+            if today_tVolume < 50000000:
+                return False
 
             # 破低翻
             if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
@@ -471,7 +463,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    # print(XShare.back_test('002812', '2025-01-23'))
+    # print(XShare.back_test('000625', '2024-09-18'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股
     analysisAndSave(0)
