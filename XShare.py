@@ -226,6 +226,15 @@ class XShare:
         :param stock_info: 股票相关信息
         :return: bool
         """
+
+        # def is_within_2_percent(a, b):
+        #     if a == 0 and b == 0:
+        #         return True
+        #     if a == 0 or b == 0:
+        #         return False
+        #
+        #     return relative_diff <= 0.02
+
         if not stock_info:
             return False
 
@@ -238,7 +247,13 @@ class XShare:
         preLowIndex = wave_info.get('preLowIndex')
 
         preHighPrice = wave_info.get('preHighPrice')
+        preLowPrice = wave_info.get('preLowPrice')
         today_high = stock_info.get('today_high')
+        today_low = stock_info.get('today_low')
+
+        relative_diff = abs(today_low - preLowPrice) / max(abs(today_low), abs(preLowPrice))
+        if relative_diff > 0.02:
+            return False
 
         # 今天的价不要过前高
         if today_high >= preHighPrice:
@@ -268,44 +283,6 @@ class XShare:
             if macd.macd_diff().iloc[i] < 0:
                 return False
         return True
-
-    @staticmethod
-    def __strategy_new_high(df_tail_150, stock_info: dict):
-        """
-           分析 创新高试盘
-           :param df_tail_150: 最近的150=条记录
-           :param stock_info: 股票相关信息
-           :return: bool
-        """
-        # 创新高的天数
-
-        if not stock_info:
-            return False
-
-        df_last_60 = df_tail_150.iloc[-60:]
-        df_last_59 = df_tail_150.iloc[-60:-1]
-        today_high = stock_info.get('today_high')
-        yesterday_high = stock_info.get('yesterday_high')
-        today_close = stock_info.get('today_close')
-
-        high_max60 = df_last_60[stock_info.get('str_high')].max()
-        high_max59 = df_last_59[stock_info.get('str_high')].max()
-
-        # 判断当天不是60天新高 直接返回
-        if today_high != high_max60:
-            return False
-        # 最天新高不能是60天新高
-        if yesterday_high == high_max59:
-            return False
-
-        # 判断K线形态   冲商回落
-        is_pullback = (today_high - today_close) * 1.6 > abs(today_high - stock_info.get('today_low'))
-        # 高开低走
-        is_high_to_low = today_close < stock_info.get('today_open')
-        if is_pullback or is_high_to_low:
-            return True
-
-        return False
 
     @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
@@ -357,11 +334,11 @@ class XShare:
                 'str_low': str_low,
             }
 
-            today_trading_volume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc[
-                "low"]
-            # 成交额 小于 5千万的 不要
-            if today_trading_volume < 50000000:
-                return False
+            # today_trading_volume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc[
+            #     "low"]
+            # # 成交额 小于 5千万的 不要
+            # if today_trading_volume < 50000000:
+            #     return False
 
             # 破低翻
             if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
@@ -369,9 +346,7 @@ class XShare:
             # 双底
             if XShare.__strategy_double_bottom(df_tail_150, stock_info):
                 return 2
-            # 创新高试盘
-            if XShare.__strategy_new_high(df_tail_150, stock_info):
-                return 3
+
             return False
         except Exception as e:
             print(f"股票代码 {code} 处理失败，错误: {e}")
@@ -425,16 +400,6 @@ class XShare:
             t.start()
             threads.append(t)
 
-        # with tqdm(total=len(stock_codes), desc="分析进度") as pbar:
-        #     processed_stocks = 0
-        #     while processed_stocks < len(stock_codes):
-        #         # 从队列获取已完成的结果组
-        #         while not result_queue.empty():
-        #             results = result_queue.get()
-        #             processed_stocks += len(results)  # 实际完成的股票数
-        #             pbar.update(len(results))  # 更新进度条
-        #         time.sleep(0.1)  # 避免空转
-
         # 等待所有线程完成
         for t in threads:
             t.join()
@@ -475,7 +440,6 @@ def analysisAndSave(market=0):
     # 提取分组
     group1 = groups.get(1, [])
     group2 = groups.get(2, [])
-    group3 = groups.get(3, [])
 
     mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
     db = mongoDBCli['ashare']
@@ -486,7 +450,6 @@ def analysisAndSave(market=0):
     data = {
         "type1": group1,
         "type2": group2,
-        "type3": group3,
         "analysis_date": datetime.now()
     }
     # 把数据写入到数据库
@@ -494,12 +457,11 @@ def analysisAndSave(market=0):
 
     print("破底翻 ", len(group1), '只:', group1)
     print("双 底 ", len(group2), '只:', group2)
-    print("创新高 ", len(group3), '只:', group3)
 
     # 只输出破底翻
     out_results = group1
     # 输出3全部的分析结果 3种全保留
-    out_results = group1 + group2 + group3
+    # out_results = group1 + group2
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
@@ -509,7 +471,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    print(XShare.back_test('002180', '2024-02-20'))
+    # print(XShare.back_test('002812', '2025-01-23'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股
-    # analysisAndSave(0)
+    analysisAndSave(0)
