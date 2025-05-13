@@ -20,14 +20,16 @@ from tqdm import tqdm
 
 
 class XShare:
-    # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整
-    __WINDOW_SIZE = 6
+    # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
+    __WINDOW_SIZE = 4
     # 记录数
     __RECORD_COUNT = 150
     # 上市天数
     __ON_MARKET_DAYS = 400
     # 创新低天数
     __NEW_LOW_DAYS = 30
+    # 创新高天数
+    __NEW_HIGH_DAYS = 60
 
     @staticmethod
     def __filteringCode(stock_code: string):
@@ -276,12 +278,12 @@ class XShare:
            :return: bool
         """
         # 创新高的天数
-        n_days = 60
+
         if not stock_info:
             return False
 
-        df_last_60 = df_tail_150.iloc[-n_days:]
-        df_last_59 = df_tail_150.iloc[-n_days:-1]
+        df_last_60 = df_tail_150.iloc[-60:]
+        df_last_59 = df_tail_150.iloc[-60:-1]
         today_high = stock_info.get('today_high')
         yesterday_high = stock_info.get('yesterday_high')
         today_close = stock_info.get('today_close')
@@ -507,7 +509,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    print(XShare.back_test('600150', '2025-05-12'))
+    print(XShare.back_test('002180', '2024-02-20'))
     # print(XShare.back_test('605136', '2024-07-12'))
-    # 开始分析
+    # 开始分析  0 是分析A股  1 是分析港股
     # analysisAndSave(0)
