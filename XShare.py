@@ -198,7 +198,7 @@ class XShare:
 
     @staticmethod
     def __get_wave_info(df_tail_150, sub_window, str_high, str_low):
-        # 获取波段
+        # 获取波段信息
         highs_index, lows_index = XShare.__getWavePoints(df_tail_150, sub_window, str_high, str_low)
 
         if len(highs_index) < 2 or len(highs_index) < 2:
@@ -217,64 +217,6 @@ class XShare:
             'preLow2Price': df_tail_150.iloc[preLow2Index][str_low],
         }
         return wave_info
-
-    @staticmethod
-    def __strategy_double_bottom(df_tail_150, stock_info: dict):
-        """
-        分析 双底结构
-        :param df_tail_150: 最近的150=条记录
-        :param stock_info: 股票相关信息
-        :return: bool
-        """
-
-        if not stock_info:
-            return False
-
-        wave_info = XShare.__get_wave_info(df_tail_150, 3, stock_info.get('str_high'), stock_info.get('str_low'))
-
-        if not wave_info:
-            return False
-
-        preHighIndex = wave_info.get('preHighIndex')
-        preLowIndex = wave_info.get('preLowIndex')
-
-        preHighPrice = wave_info.get('preHighPrice')
-        preLowPrice = wave_info.get('preLowPrice')
-        today_high = stock_info.get('today_high')
-        today_low = stock_info.get('today_low')
-
-        relative_diff = abs(today_low - preLowPrice) / max(abs(today_low), abs(preLowPrice))
-        if relative_diff > 0.02:
-            return False
-
-        # 今天的价不要过前高
-        if today_high >= preHighPrice:
-            return False
-        # 前低点索引 要小于 前高点索引
-        if preHighIndex < preLowIndex:
-            return False
-        # 前高点 到 今日最小要3天
-        if (XShare.__RECORD_COUNT - preHighIndex) < 3:
-            return False
-
-        macd = MACD(close=df_tail_150[stock_info.get('str_close')], window_fast=12, window_slow=26, window_sign=9)
-        if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
-            return False
-        pre_high_dea = macd.macd_signal().iloc[preHighIndex]
-        pre_low_dea = macd.macd_signal().iloc[preLowIndex]
-        today_dea = macd.macd_signal().iloc[XShare.__RECORD_COUNT - 1]
-
-        # 慢线要慢慢抬高
-        if pre_low_dea > today_dea:
-            return False
-        #  慢线不能上0轴
-        if pre_high_dea > 0:
-            return False
-        # 高点到今日的 MACD  hist
-        for i in range(preHighIndex, XShare.__RECORD_COUNT):
-            if macd.macd_diff().iloc[i] < 0:
-                return False
-        return True
 
     @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
@@ -312,7 +254,7 @@ class XShare:
             today_doc = df_tail_150.iloc[-1]
             yesterday_doc = df_tail_150.iloc[-2]
 
-            # 获取股票参数
+            # 分析需要用到的信息
             stock_info = {
                 'today_open': today_doc[str_open],
                 'today_close': today_doc[str_close],
@@ -335,9 +277,6 @@ class XShare:
             # 破低翻
             if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
                 return 1
-            # 双底
-            if XShare.__strategy_double_bottom(df_tail_150, stock_info):
-                return 2
 
             return False
         except Exception as e:
@@ -448,7 +387,6 @@ def analysisAndSave(market=0):
     coll_analysis_Results.insert_one(data)
 
     print("破底翻 ", len(group1), '只:', group1)
-    print("双 底 ", len(group2), '只:', group2)
 
     # 只输出破底翻
     out_results = group1
@@ -463,7 +401,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    # print(XShare.back_test('000625', '2024-09-18'))
+    # print(XShare.back_test('002180', '2024-02-20'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股
     analysisAndSave(0)
