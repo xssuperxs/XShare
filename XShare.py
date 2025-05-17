@@ -20,6 +20,9 @@ from tqdm import tqdm
 
 
 class XShare:
+    """
+    此乃真经
+    """
     # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
     __WINDOW_SIZE = 4
     # 记录数
@@ -28,8 +31,6 @@ class XShare:
     __ON_MARKET_DAYS = 400
     # 创新低天数
     __NEW_LOW_DAYS = 30
-    # 创新高天数
-    __NEW_HIGH_DAYS = 60
 
     @staticmethod
     def __filteringCode(stock_code: string):
@@ -285,27 +286,18 @@ class XShare:
 
     @staticmethod
     def analysisA(market=0):
-        stock_codes = []
+
+        stocks_df = ak.stock_zh_a_spot_em() if market == 0 else ak.stock_hk_spot_em()
+        stocks_df = stocks_df.dropna(subset=['今开'])
+        stocks_df = stocks_df.dropna(subset=['成交量'])
+
         # A股
         if market == 0:
             # 获取 ST 股票
             st_stocks_df = ak.stock_zh_a_st_em()
-            st_stocks_list = st_stocks_df['代码'].to_list()
+            stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
 
-            # 获取当日所有股票代码A股
-            df_em = ak.stock_zh_a_spot_em()
-            df_em = df_em.dropna(subset=['今开'])
-            em_stocks_list = df_em['代码'].to_list()
-
-            stock_codes = list(set(em_stocks_list) - set(st_stocks_list))
-        # 港股
-        if market == 1:
-            stock_hk_df = ak.stock_hk_spot_em()
-            # 去掉没有成交量的
-            stock_hk_df = stock_hk_df.dropna(subset=['今开'])
-            stock_hk_df = stock_hk_df.dropna(subset=['成交量'])
-            stock_hk_df = stock_hk_df.dropna(subset=['成交额'])
-            stock_codes = stock_hk_df['代码'].to_list()
+        stock_codes = stocks_df['代码'].to_list()
 
         # 将股票代码分组
         groups = np.array_split(stock_codes, max(1, len(stock_codes) // 10))
