@@ -16,13 +16,9 @@ from datetime import datetime
 import subprocess
 import sys
 
-from tqdm import tqdm
-
 
 class XShare:
-    """
-    此乃真经
-    """
+    """ 道 """
     # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
     __WINDOW_SIZE = 4
     # 记录数
@@ -123,7 +119,7 @@ class XShare:
         return XShare.__analyze_single(code, market, end_date)
 
     @staticmethod
-    def __strategy_bottomUpFlip(df_tail_150, stock_info: dict):
+    def __strategy_bottomUpFlip(df_tail_150, stock_info):
         """
         :param df_tail_150:   最近 150天的交易记录
         :param stock_info:    需要用到的列  low high ...
@@ -196,6 +192,18 @@ class XShare:
             if preLowPrice <= min_last_N:
                 return True
         return False
+
+    @staticmethod
+    def __strategy_double_bottom(df_tail_150, stock_info):
+        """
+         双底
+        :param df_tail_150:
+        :param stock_info:
+        :return:
+        """
+        # 当天低点 和前低 差不多
+        # 高点到今天要是MACD 红柱
+        pass
 
     @staticmethod
     def __get_wave_info(df_tail_150, sub_window, str_high, str_low):
@@ -393,7 +401,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    # print(XShare.back_test('002180', '2024-02-20'))
+    # print(XShare.back_test('600529', '2024-12-10'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股
     analysisAndSave(0)
