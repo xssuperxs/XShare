@@ -199,7 +199,7 @@ class XShare:
          双底
         :param df_tail_150:
         :param stock_info:
-        :return:
+        :return:bool
         """
         # 当天低点 和前低 差不多
         # 高点到今天要是MACD 红柱
@@ -277,11 +277,11 @@ class XShare:
                 'str_low': str_low,
             }
 
-            today_tVolume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc["low"]
-
-            # 成交额 小于 5千万的 不要
-            if today_tVolume < 50000000:
-                return False
+            # today_tVolume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc["low"]
+            #
+            # # 成交额 小于 5千万的 不要
+            # if today_tVolume < 50000000:
+            #     return False
 
             # 破低翻
             if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
