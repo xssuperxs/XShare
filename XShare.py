@@ -231,7 +231,7 @@ class XShare:
         str_volume = '成交量' if socket_market == 0 else 'volume'
 
         try:
-            df = ak.stock_zh_a_hist(symbol=code, period="weekly", adjust="qfq")
+            df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
             if socket_market == 1:
                 df = ak.stock_hk_daily(symbol=code, adjust="qfq")
 
