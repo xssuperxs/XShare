@@ -20,7 +20,7 @@ import sys
 class XShare:
     """ 道 """
     # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
-    __WINDOW_SIZE = 4
+    __WINDOW_SIZE = 6
     # 记录数
     __RECORD_COUNT = 150
     # 上市天数
@@ -176,21 +176,8 @@ class XShare:
             # 判断是不是破底翻
             if preLowPrice > preLow2Price:
                 continue
+            return 1
 
-            macd = MACD(close=df_tail_150[stock_info.get('str_close')], window_fast=12, window_slow=26, window_sign=9)
-
-            if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
-                continue
-            pre_high_dea = macd.macd_signal().iloc[preHighIndex]
-
-            if pre_high_dea > 0:
-                continue
-
-            # 获取最低点向前的N条记录
-            subset = df_tail_150.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-            min_last_N = subset[str_low].min()
-            if preLowPrice <= min_last_N:
-                return True
         return False
 
     @staticmethod
@@ -217,8 +204,14 @@ class XShare:
         preLowIndex = lows_index[-1]
         preLow2Index = lows_index[-2]
 
+        if preLowIndex < preHighIndex:
+            for item in reversed(highs_index):
+                if item < preLowIndex:
+                    preHighIndex = item
+                    break
+
         wave_info = {
-            'preHighIndex': highs_index[-1],
+            'preHighIndex': preHighIndex,
             'preLowIndex': lows_index[-1],
             'preLow2Index': lows_index[-2],
             'preHighPrice': df_tail_150.iloc[preHighIndex][str_high],
@@ -238,7 +231,7 @@ class XShare:
         str_volume = '成交量' if socket_market == 0 else 'volume'
 
         try:
-            df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
+            df = ak.stock_zh_a_hist(symbol=code, period="weekly", adjust="qfq")
             if socket_market == 1:
                 df = ak.stock_hk_daily(symbol=code, adjust="qfq")
 
@@ -401,7 +394,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    # print(XShare.back_test('600529', '2024-12-10'))
+    print(XShare.back_test('601398', '2023-03-10'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股
-    analysisAndSave(0)
+    # analysisAndSave(0)
