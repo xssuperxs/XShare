@@ -56,15 +56,15 @@ class XShare:
         # 计算每个元素出现的次数
         count_dict = Counter(input_list)
         # 筛选出出现次数大于3的元素
-        filtered_elements = [element for element, count in count_dict.items() if count > nCount]
+        filtered_elements = [element for element, count in count_dict.items() if count >= nCount]
         return filtered_elements
 
     @staticmethod
-    def __getWavePoints(records, subWindowSize, high_flag, low_flag):
+    def __getWavePoints(records, window_size, high_flag, low_flag):
         """
         计算波段的高低点
         :param records:  要计算的记录
-        :param subWindowSize: 滑动窗口
+        :param window_size: 滑动窗口
         :param high_flag:  最高价 字段的 名称
         :param low_flag:   最低价 字段的 名称
         :return:
@@ -80,10 +80,10 @@ class XShare:
         highs = highs[::-1]
         lows = lows[::-1]
 
-        for i in range(len(highs) - XShare.__WINDOW_SIZE + 1):
+        for i in range(len(highs) - window_size + 1):
             # 获取当前窗口的数据
-            window_high = highs[i:i + XShare.__WINDOW_SIZE]
-            window_low = lows[i:i + XShare.__WINDOW_SIZE]
+            window_high = highs[i:i + window_size]
+            window_low = lows[i:i + window_size]
 
             # 计算窗口内的最高点和最低点的索引
             high_index = window_high.index(max(window_high)) + i
@@ -93,8 +93,8 @@ class XShare:
             window_highs_index.append(high_index)
             window_lows_index.append(low_index)
 
-        wave_highs_index = XShare.__extractFrequentElements(window_highs_index, subWindowSize)
-        wave_lows_index = XShare.__extractFrequentElements(window_lows_index, subWindowSize)
+        wave_highs_index = XShare.__extractFrequentElements(window_highs_index, window_size)
+        wave_lows_index = XShare.__extractFrequentElements(window_lows_index, window_size)
 
         # 再把计算结果反转过来
         for i in range(len(wave_highs_index)):
@@ -139,35 +139,45 @@ class XShare:
             return False
 
         # 获取需要的时间窗口
-        nSubWindow = [i for i in range(2, XShare.__WINDOW_SIZE)]
+        nSubWindow = [i for i in range(3, XShare.__WINDOW_SIZE)]
 
         for n in nSubWindow:
 
-            wave_info = XShare.__get_wave_info(df_tail_150, n, str_high, str_low)
+            # 获取波段的 高低点
+            highs_index, lows_index = XShare.__getWavePoints(df_tail_150, n, str_high, str_low)
 
-            if not wave_info:
-                return False
+            if len(highs_index) < 2 or len(highs_index) < 2:
+                continue
 
-            preHighIndex = wave_info.get('preHighIndex')
-            preLowIndex = wave_info.get('preLowIndex')
+            preHighIndex = highs_index[-1]
+            preLowIndex = lows_index[-1]
+            preLow2Index = lows_index[-2]
 
-            preHighPrice = wave_info.get('preHighPrice')
-            preLowPrice = wave_info.get('preLowPrice')
-            preLow2Price = wave_info.get('preLow2Price')
+            preHighPrice = df_tail_150.iloc[preHighIndex][str_high]
+            preLowPrice = df_tail_150.iloc[preLowIndex][str_low]
+            preLow2Price = df_tail_150.iloc[preLow2Index][str_low]
 
-            # 当天过高点
+            # 当天高点要过前高
             if today_high <= preHighPrice:
                 continue
-            # 昨天没过高点
+            # 昨天高点不能过前高
             if yesterday_high >= preHighPrice:
                 continue
 
-            if today_low < preLowPrice:
-                preLowPrice = today_low
-                preLowIndex = XShare.__RECORD_COUNT - 1
-            if yesterday_low < preLowPrice:
-                preLowIndex = XShare.__RECORD_COUNT - 2
-                preLowPrice = yesterday_low
+            if today_low < preLowPrice or yesterday_low < preLowPrice:
+                preLow2Price = preLowPrice
+                if today_low < preLowPrice:
+                    preLowPrice = today_low
+                    preLowIndex = XShare.__RECORD_COUNT - 1
+                else:
+                    preLowIndex = XShare.__RECORD_COUNT - 2
+                    preLowPrice = yesterday_low
+
+            # if preLowIndex < preHighIndex:
+            #     for item in reversed(highs_index):
+            #         if item < preLowIndex:
+            #             preHighIndex = item
+            #             break
 
             # 前低索引要大
             if preHighIndex > preLowIndex:
@@ -176,7 +186,21 @@ class XShare:
             # 判断是不是破底翻
             if preLowPrice > preLow2Price:
                 continue
-            return 1
+
+            macd = MACD(close=df_tail_150[stock_info.get('str_close')], window_fast=12, window_slow=26, window_sign=9)
+
+            if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
+                continue
+            pre_high_dea = macd.macd_signal().iloc[preHighIndex]
+
+            if pre_high_dea > 0:
+                continue
+
+            # 获取最低点向前的N条记录
+            subset = df_tail_150.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
+            n_day_low_price = subset[str_low].min()
+            if preLowPrice <= n_day_low_price:
+                return True
 
         return False
 
@@ -191,34 +215,6 @@ class XShare:
         # 当天低点 和前低 差不多
         # 高点到今天要是MACD 红柱
         pass
-
-    @staticmethod
-    def __get_wave_info(df_tail_150, sub_window, str_high, str_low):
-        # 获取波段信息
-        highs_index, lows_index = XShare.__getWavePoints(df_tail_150, sub_window, str_high, str_low)
-
-        if len(highs_index) < 2 or len(highs_index) < 2:
-            return {}
-
-        preHighIndex = highs_index[-1]
-        preLowIndex = lows_index[-1]
-        preLow2Index = lows_index[-2]
-
-        if preLowIndex < preHighIndex:
-            for item in reversed(highs_index):
-                if item < preLowIndex:
-                    preHighIndex = item
-                    break
-
-        wave_info = {
-            'preHighIndex': preHighIndex,
-            'preLowIndex': lows_index[-1],
-            'preLow2Index': lows_index[-2],
-            'preHighPrice': df_tail_150.iloc[preHighIndex][str_high],
-            'preLowPrice': df_tail_150.iloc[preLowIndex][str_low],
-            'preLow2Price': df_tail_150.iloc[preLow2Index][str_low],
-        }
-        return wave_info
 
     @staticmethod
     def __analyze_single(code, socket_market, end_date=''):
@@ -363,21 +359,21 @@ def analysisAndSave(market=0):
 
     # 提取分组
     group1 = groups.get(1, [])
-    group2 = groups.get(2, [])
+    # group2 = groups.get(2, [])
 
-    mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
-    db = mongoDBCli['ashare']
-
-    # 分析结果的集合
-    coll_analysis_Results = db['analysis_results']
-
-    data = {
-        "type1": group1,
-        "type2": group2,
-        "analysis_date": datetime.now()
-    }
-    # 把数据写入到数据库
-    coll_analysis_Results.insert_one(data)
+    # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
+    # db = mongoDBCli['ashare']
+    #
+    # # 分析结果的集合
+    # coll_analysis_Results = db['analysis_results']
+    #
+    # data = {
+    #     "type1": group1,
+    #     "type2": group2,
+    #     "analysis_date": datetime.now()
+    # }
+    # # 把数据写入到数据库
+    # coll_analysis_Results.insert_one(data)
 
     print("破底翻 ", len(group1), '只:', group1)
 
@@ -394,7 +390,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    print(XShare.back_test('601398', '2023-03-10'))
+    print(XShare.back_test('600965', '2025-05-20'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股
     # analysisAndSave(0)
