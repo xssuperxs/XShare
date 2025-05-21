@@ -108,7 +108,7 @@ class XShare:
         return wave_highs_index, wave_lows_index
 
     @staticmethod
-    def back_test(code, end_date, market=0):
+    def back_test(code, end_date):
         """
         回测用
         :param code: 代码
@@ -116,7 +116,7 @@ class XShare:
         :param market: 市场代码  0 或  1   默认0 中国A股 1 港股
         :return:
         """
-        return XShare.__analyze_single(code, market, end_date)
+        return XShare.__analyze_single(code, 0, 'daily', end_date)
 
     @staticmethod
     def __strategy_bottomUpFlip(df_tail_150, stock_info):
@@ -173,12 +173,6 @@ class XShare:
                     preLowIndex = XShare.__RECORD_COUNT - 2
                     preLowPrice = yesterday_low
 
-            # if preLowIndex < preHighIndex:
-            #     for item in reversed(highs_index):
-            #         if item < preLowIndex:
-            #             preHighIndex = item
-            #             break
-
             # 前低索引要大
             if preHighIndex > preLowIndex:
                 continue
@@ -217,7 +211,7 @@ class XShare:
         pass
 
     @staticmethod
-    def __analyze_single(code, socket_market, end_date=''):
+    def __analyze_single(code, socket_market, period='daily', end_date=''):
 
         str_high = '最高' if socket_market == 0 else 'high'
         str_low = '最低' if socket_market == 0 else 'low'
@@ -227,7 +221,7 @@ class XShare:
         str_volume = '成交量' if socket_market == 0 else 'volume'
 
         try:
-            df = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq")
+            df = ak.stock_zh_a_hist(symbol=code, period=period, adjust="qfq")
             if socket_market == 1:
                 df = ak.stock_hk_daily(symbol=code, adjust="qfq")
 
@@ -244,7 +238,6 @@ class XShare:
             else:
                 df['date'] = pd.to_datetime(df[str_date])  # 转换日期列
                 target_date = pd.to_datetime(end_date)
-                # target_date = pd.to_datetime('2024-05-06')
                 target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
                 start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
                 df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
@@ -265,13 +258,6 @@ class XShare:
                 'str_high': str_high,
                 'str_low': str_low,
             }
-
-            # today_tVolume = today_doc['成交额'] if socket_market == 0 else today_doc[str_volume] * today_doc["low"]
-            #
-            # # 成交额 小于 5千万的 不要
-            # if today_tVolume < 50000000:
-            #     return False
-
             # 破低翻
             if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
                 return 1
@@ -282,19 +268,7 @@ class XShare:
             return False
 
     @staticmethod
-    def analysisA(market=0):
-
-        stocks_df = ak.stock_zh_a_spot_em() if market == 0 else ak.stock_hk_spot_em()
-        stocks_df = stocks_df.dropna(subset=['今开'])
-        stocks_df = stocks_df.dropna(subset=['成交量'])
-
-        # A股
-        if market == 0:
-            # 获取 ST 股票
-            st_stocks_df = ak.stock_zh_a_st_em()
-            stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
-
-        stock_codes = stocks_df['代码'].to_list()
+    def __thread_analysis(stock_codes, stock_market, period='daily'):
 
         # 将股票代码分组
         groups = np.array_split(stock_codes, max(1, len(stock_codes) // 10))
@@ -306,17 +280,17 @@ class XShare:
         # 线程列表
         threads = []
 
-        def worker(stock_group, socket_market):
+        def worker(stock_group, tp_stock_market, tp_period):
             results = []
             for code in stock_group:
-                ret = XShare.__analyze_single(code, socket_market)
+                ret = XShare.__analyze_single(code, tp_stock_market, tp_period)
                 if ret in {1, 2, 3}:
                     results.append((ret, code))
             result_queue.put(results)
 
         # 创建并启动线程
         for group in groups:
-            t = threading.Thread(target=worker, args=(group, market))
+            t = threading.Thread(target=worker, args=(group, stock_market, period))
             t.start()
             threads.append(t)
 
@@ -335,6 +309,25 @@ class XShare:
         print(f"\n分析完成! 总耗时: {elapsed:.2f}秒")
         return str_results
 
+    @staticmethod
+    def __get_stock_codes(market=0):
+        stocks_df = ak.stock_zh_a_spot_em() if market == 0 else ak.stock_hk_spot_em()
+        stocks_df = stocks_df.dropna(subset=['今开'])
+        stocks_df = stocks_df.dropna(subset=['成交量'])
+        if market == 0:
+            # 过滤掉ST
+            st_stocks_df = ak.stock_zh_a_st_em()
+            stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
+        return stocks_df['代码'].to_list()
+
+    @staticmethod
+    def analysisA(period='daily'):
+        return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
+
+    @staticmethod
+    def analysisAH():
+        return XShare.__thread_analysis(XShare.__get_stock_codes(1), 1)
+
 
 def analysisAndSave(market=0):
     # 输出的文件路径
@@ -348,32 +341,17 @@ def analysisAndSave(market=0):
                           stderr=subprocess.DEVNULL)
 
     print('begin analyzing....')
-    resultA = XShare.analysisA(market)
+    analysis_result = XShare.analysisA() if market == 0 else XShare.analysisAH()
 
     # 处理分析结果 使用字典来存储分组结果
     groups = {}
-    for num, code in resultA:
+    for num, code in analysis_result:
         if num not in groups:
             groups[num] = []
         groups[num].append(code)
 
     # 提取分组
     group1 = groups.get(1, [])
-    # group2 = groups.get(2, [])
-
-    # mongoDBCli = pymongo.MongoClient("mongodb://dbroot:123456ttqqTTQQ@113.44.193.120:28018/")
-    # db = mongoDBCli['ashare']
-    #
-    # # 分析结果的集合
-    # coll_analysis_Results = db['analysis_results']
-    #
-    # data = {
-    #     "type1": group1,
-    #     "type2": group2,
-    #     "analysis_date": datetime.now()
-    # }
-    # # 把数据写入到数据库
-    # coll_analysis_Results.insert_one(data)
 
     print("破底翻 ", len(group1), '只:', group1)
 
@@ -390,7 +368,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    print(XShare.back_test('600965', '2025-05-20'))
+    #print(XShare.back_test('600529', '2024-09-05'))
     # print(XShare.back_test('605136', '2024-07-12'))
-    # 开始分析  0 是分析A股  1 是分析港股
-    # analysisAndSave(0)
+    # 开始分析  0 是分析A股  1 是分析港股 默认为0
+    analysisAndSave()
