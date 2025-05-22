@@ -10,9 +10,6 @@ import threading
 from queue import Queue
 import pandas as pd
 
-import pymongo
-from datetime import datetime
-
 import subprocess
 import sys
 
@@ -179,7 +176,7 @@ class XShare:
             if preLowPrice > preLow2Price:
                 continue
 
-            macd = MACD(close=df_tail_150[stock_info.get('str_close')], window_fast=12, window_slow=26, window_sign=9)
+            macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
 
             if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
                 continue
@@ -224,15 +221,17 @@ class XShare:
             XShare.__RECORD_COUNT = 100
 
         try:
-            df = ak.stock_zh_a_hist(symbol=code, period=period, adjust="qfq")
-            if socket_market == 1:
-                df = ak.stock_hk_daily(symbol=code, adjust="qfq")
-
+            df = pd.DataFrame()
             if socket_market == 0:
+                df = ak.stock_zh_a_hist(symbol=code, period=period, adjust="qfq")
+                # 过滤掉不需要的 科创板 北证
                 if not XShare.__filteringCode(code):
                     return False
-                # 重新命名列
+                # A 股重新命名列  统一成英文的列名
                 df = df.rename(columns=column_mapping)
+
+            if socket_market == 1:
+                df = ak.stock_hk_daily(symbol=code, adjust="qfq")
 
             if len(df) < XShare.__RECORD_COUNT:
                 return False
@@ -260,11 +259,12 @@ class XShare:
     def __thread_analysis(stock_codes, stock_market, period='daily'):
 
         # 将股票代码分组
-        groups = np.array_split(stock_codes, max(1, len(stock_codes) // 20))
+        groups = np.array_split(stock_codes, max(1, len(stock_codes) // 5))
 
         # 用于存储结果的队列
         result_queue = Queue()
 
+        # 开始分析的时间
         start_time = time.time()
         # 线程列表
         threads = []
@@ -287,7 +287,7 @@ class XShare:
         for t in threads:
             t.join()
 
-        # # 收集所有结果
+        # 收集所有结果
         analysis_results = []
         while not result_queue.empty():
             analysis_results.extend(result_queue.get())
@@ -307,7 +307,6 @@ class XShare:
             # 过滤掉ST
             st_stocks_df = ak.stock_zh_a_st_em()
             stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
-        aaa = stocks_df['代码'].to_list()
         return stocks_df['代码'].to_list()
 
     @staticmethod
