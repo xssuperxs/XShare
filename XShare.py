@@ -317,27 +317,27 @@ class XShare:
     def analysisAH():
         return XShare.__thread_analysis(XShare.__get_stock_codes(1), 1)
 
+    @staticmethod
+    def update_packet():
+        """
+        更新 akshare
+        :return:
+        """
+        print('update akshare...')
+        subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL)
+        # 安装或升级 akshare
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"],
+                              stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
 
-def analysisAndSave(market=0):
+
+def handle_results(result):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print('update akshare...')
-    subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL)
-    # 安装或升级 akshare
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"], stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL)
-
-    print('begin analyzing....')
-    analysis_result = []
-    if market == 0:
-        analysis_result = XShare.analysisA()
-    if market == 1:
-        analysis_result = XShare.analysisAH()
-    # 处理分析结果 使用字典来存储分组结果
     groups = {}
-    for num, code in analysis_result:
+    for num, code in result:
         if num not in groups:
             groups[num] = []
         groups[num].append(code)
@@ -359,8 +359,15 @@ def analysisAndSave(market=0):
 
 
 if __name__ == '__main__':
-    # 回测用
-    print(XShare.back_test('600644', '2025-04-09'))
-    # print(XShare.back_test('605136', '2024-07-12'))
-    # 开始分析  0 是分析A股  1 是分析港股 默认为0
-    # analysisAndSave(1)
+    test = True
+    if test:
+        # 回测用
+        print(XShare.back_test('600644', '2025-04-09'))
+    else:
+        XShare.update_packet()
+        # 分析A股
+        results = XShare.analysisA()
+        # 分析AH股 港股
+        # aResult = XShare.analysisAH()
+        # 处理分析结棍
+        handle_results(results)
