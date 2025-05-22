@@ -26,7 +26,7 @@ class XShare:
     # 上市天数
     __ON_MARKET_DAYS = 400
     # 创新低天数
-    __NEW_LOW_DAYS = 30
+    __NEW_LOW_DAYS = 18
 
     @staticmethod
     def __filteringCode(stock_code: string):
@@ -108,32 +108,30 @@ class XShare:
         return wave_highs_index, wave_lows_index
 
     @staticmethod
-    def back_test(code, end_date):
+    def back_test(code, end_date, period='daily'):
         """
-        回测用
+        测试用
+        :param period: 周期
         :param code: 代码
         :param end_date: 结束时间
-        :param market: 市场代码  0 或  1   默认0 中国A股 1 港股
-        :return:
+        :return: 失败False  成功 类型码
         """
-        return XShare.__analyze_single(code, 0, 'daily', end_date)
+        return XShare.__analyze_single(code, 0, period, end_date)
 
     @staticmethod
-    def __strategy_bottomUpFlip(df_tail_150, stock_info):
+    def __strategy_bottomUpFlip(df_klines: pd.DataFrame) -> bool:
         """
-        :param df_tail_150:   最近 150天的交易记录
-        :param stock_info:    需要用到的列  low high ...
+        :param df_klines:   最近 N天的交易记录
         :return:  bool
         """
-        if not stock_info:
-            return False
 
-        today_high = stock_info.get('today_high')
-        today_low = stock_info.get('today_low')
-        yesterday_high = stock_info.get('yesterday_high')
-        yesterday_low = stock_info.get('yesterday_low')
-        str_high = stock_info.get('str_high')
-        str_low = stock_info.get('str_low')
+        today_doc = df_klines.iloc[-1]
+        yesterday_doc = df_klines.iloc[-2]
+
+        today_high = today_doc['high']
+        today_low = today_doc['low']
+        yesterday_high = yesterday_doc['high']
+        yesterday_low = yesterday_doc['low']
 
         if yesterday_high > today_high:
             return False
@@ -144,7 +142,7 @@ class XShare:
         for n in nSubWindow:
 
             # 获取波段的 高低点
-            highs_index, lows_index = XShare.__getWavePoints(df_tail_150, n, str_high, str_low)
+            highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
 
             if len(highs_index) < 2 or len(highs_index) < 2:
                 continue
@@ -153,9 +151,9 @@ class XShare:
             preLowIndex = lows_index[-1]
             preLow2Index = lows_index[-2]
 
-            preHighPrice = df_tail_150.iloc[preHighIndex][str_high]
-            preLowPrice = df_tail_150.iloc[preLowIndex][str_low]
-            preLow2Price = df_tail_150.iloc[preLow2Index][str_low]
+            preHighPrice = df_klines.iloc[preHighIndex]['high']
+            preLowPrice = df_klines.iloc[preLowIndex]['low']
+            preLow2Price = df_klines.iloc[preLow2Index]['low']
 
             # 当天高点要过前高
             if today_high <= preHighPrice:
@@ -191,8 +189,8 @@ class XShare:
                 continue
 
             # 获取最低点向前的N条记录
-            subset = df_tail_150.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-            n_day_low_price = subset[str_low].min()
+            subset = df_klines.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
+            n_day_low_price = subset['low'].min()
             if preLowPrice <= n_day_low_price:
                 return True
 
@@ -213,12 +211,17 @@ class XShare:
     @staticmethod
     def __analyze_single(code, socket_market, period='daily', end_date=''):
 
-        str_high = '最高' if socket_market == 0 else 'high'
-        str_low = '最低' if socket_market == 0 else 'low'
-        str_open = '开盘' if socket_market == 0 else 'open'
-        str_close = '收盘' if socket_market == 0 else 'close'
-        str_date = '日期' if socket_market == 0 else 'date'
-        str_volume = '成交量' if socket_market == 0 else 'volume'
+        column_mapping = {
+            "日期": "date",
+            "开盘": "open",
+            "最高": "high",
+            "最低": "low",
+            "收盘": "close",
+            "成交量": "volume",
+        }
+
+        if period == 'weekly':
+            XShare.__RECORD_COUNT = 100
 
         try:
             df = ak.stock_zh_a_hist(symbol=code, period=period, adjust="qfq")
@@ -228,6 +231,8 @@ class XShare:
             if socket_market == 0:
                 if not XShare.__filteringCode(code):
                     return False
+                # 重新命名列
+                df = df.rename(columns=column_mapping)
 
             if len(df) < XShare.__RECORD_COUNT:
                 return False
@@ -236,30 +241,14 @@ class XShare:
             if len(end_date) == 0:
                 df_tail_150 = df.tail(XShare.__RECORD_COUNT)
             else:
-                df['date'] = pd.to_datetime(df[str_date])  # 转换日期列
+                df['date'] = pd.to_datetime(df['date'])  # 转换日期列
                 target_date = pd.to_datetime(end_date)
                 target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
                 start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
                 df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
 
-            today_doc = df_tail_150.iloc[-1]
-            yesterday_doc = df_tail_150.iloc[-2]
-
-            # 分析需要用到的信息
-            stock_info = {
-                'today_open': today_doc[str_open],
-                'today_close': today_doc[str_close],
-                'today_high': today_doc[str_high],
-                'today_low': today_doc[str_low],
-                'yesterday_high': yesterday_doc[str_high],
-                'yesterday_low': yesterday_doc[str_high],
-                'str_open': str_open,
-                'str_close': str_close,
-                'str_high': str_high,
-                'str_low': str_low,
-            }
             # 破低翻
-            if XShare.__strategy_bottomUpFlip(df_tail_150, stock_info):
+            if XShare.__strategy_bottomUpFlip(df_tail_150):
                 return 1
 
             return False
@@ -271,7 +260,7 @@ class XShare:
     def __thread_analysis(stock_codes, stock_market, period='daily'):
 
         # 将股票代码分组
-        groups = np.array_split(stock_codes, max(1, len(stock_codes) // 10))
+        groups = np.array_split(stock_codes, max(1, len(stock_codes) // 20))
 
         # 用于存储结果的队列
         result_queue = Queue()
@@ -283,7 +272,7 @@ class XShare:
         def worker(stock_group, tp_stock_market, tp_period):
             results = []
             for code in stock_group:
-                ret = XShare.__analyze_single(code, tp_stock_market, tp_period)
+                ret = XShare.__analyze_single(code=code, socket_market=tp_stock_market, period=tp_period, end_date='')
                 if ret in {1, 2, 3}:
                     results.append((ret, code))
             result_queue.put(results)
@@ -318,6 +307,7 @@ class XShare:
             # 过滤掉ST
             st_stocks_df = ak.stock_zh_a_st_em()
             stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
+        aaa = stocks_df['代码'].to_list()
         return stocks_df['代码'].to_list()
 
     @staticmethod
@@ -341,8 +331,11 @@ def analysisAndSave(market=0):
                           stderr=subprocess.DEVNULL)
 
     print('begin analyzing....')
-    analysis_result = XShare.analysisA() if market == 0 else XShare.analysisAH()
-
+    analysis_result = []
+    if market == 0:
+        analysis_result = XShare.analysisA()
+    if market == 1:
+        analysis_result = XShare.analysisAH()
     # 处理分析结果 使用字典来存储分组结果
     groups = {}
     for num, code in analysis_result:
@@ -368,7 +361,7 @@ def analysisAndSave(market=0):
 
 if __name__ == '__main__':
     # 回测用
-    #print(XShare.back_test('600529', '2024-09-05'))
+    print(XShare.back_test('600644', '2025-04-09'))
     # print(XShare.back_test('605136', '2024-07-12'))
     # 开始分析  0 是分析A股  1 是分析港股 默认为0
-    analysisAndSave()
+    # analysisAndSave(1)
