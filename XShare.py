@@ -259,7 +259,7 @@ class XShare:
     def __thread_analysis(stock_codes, stock_market, period='daily'):
 
         # 将股票代码分组
-        groups = np.array_split(stock_codes, max(1, len(stock_codes) // 5))
+        groups = np.array_split(stock_codes, 10)
 
         # 用于存储结果的队列
         result_queue = Queue()
