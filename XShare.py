@@ -12,6 +12,7 @@ import pandas as pd
 
 import subprocess
 import sys
+import time
 
 
 class XShare:
@@ -23,7 +24,7 @@ class XShare:
     # 上市天数
     __ON_MARKET_DAYS = 400
     # 创新低天数
-    __NEW_LOW_DAYS = 18
+    __NEW_LOW_DAYS = 30
 
     @staticmethod
     def __filteringCode(stock_code: string):
@@ -216,7 +217,6 @@ class XShare:
             "收盘": "close",
             "成交量": "volume",
         }
-
         if period == 'weekly':
             XShare.__RECORD_COUNT = 100
 
@@ -256,8 +256,7 @@ class XShare:
             return False
 
     @staticmethod
-    def __thread_analysis(stock_codes, stock_market, period='daily'):
-
+    def __thread_analysis(stock_codes, stock_market, period):
         # 将股票代码分组
         groups = np.array_split(stock_codes, 10)
 
@@ -269,13 +268,27 @@ class XShare:
         # 线程列表
         threads = []
 
+        # 速率限制相关变量
+        rate_limit = 10  # 每秒最多10次调用
+        last_call_time = 0
+        rate_lock = threading.Lock()
+
         def worker(stock_group, tp_stock_market, tp_period):
-            results = []
+            nonlocal last_call_time
+            ana_results = []
             for code in stock_group:
+                # 速率控制
+                with rate_lock:
+                    # 计算需要等待的时间
+                    isElapsed = time.time() - last_call_time
+                    if isElapsed < 1.0 / rate_limit:
+                        time.sleep((1.0 / rate_limit) - isElapsed)
+                    last_call_time = time.time()
+
                 ret = XShare.__analyze_single(code=code, socket_market=tp_stock_market, period=tp_period, end_date='')
                 if ret in {1, 2, 3}:
-                    results.append((ret, code))
-            result_queue.put(results)
+                    ana_results.append((ret, code))
+            result_queue.put(ana_results)
 
         # 创建并启动线程
         for group in groups:
@@ -359,7 +372,7 @@ def handle_results(result):
 
 
 if __name__ == '__main__':
-    test = True
+    test = False
     if test:
         # 回测用
         print(XShare.back_test('600644', '2025-04-09'))
