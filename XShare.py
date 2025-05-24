@@ -117,7 +117,7 @@ class XShare:
         return XShare.__analyze_single(code, 0, period, end_date)
 
     @staticmethod
-    def __strategy_bottomUpFlip(df_klines: pd.DataFrame) -> bool:
+    def __strategy_bottomUpFlip(df_klines: pd.DataFrame, period='daily') -> bool:
         """
         :param df_klines:   最近 N天的交易记录
         :return:  bool
@@ -162,10 +162,11 @@ class XShare:
 
             if today_low < preLowPrice or yesterday_low < preLowPrice:
                 preLow2Price = preLowPrice
-                if today_low < preLowPrice:
+                minPrice = min([today_low, yesterday_low])
+                if minPrice == today_low:
                     preLowPrice = today_low
                     preLowIndex = XShare.__RECORD_COUNT - 1
-                else:
+                if minPrice == yesterday_low:
                     preLowIndex = XShare.__RECORD_COUNT - 2
                     preLowPrice = yesterday_low
 
@@ -176,6 +177,10 @@ class XShare:
             # 判断是不是破底翻
             if preLowPrice > preLow2Price:
                 continue
+
+            # 如果是分析周线 这里直接返回True
+            if period == 'weekly':
+                return True
 
             macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
 
@@ -247,7 +252,7 @@ class XShare:
                 df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
 
             # 破低翻
-            if XShare.__strategy_bottomUpFlip(df_tail_150):
+            if XShare.__strategy_bottomUpFlip(df_tail_150, period):
                 return 1
 
             return False
@@ -372,10 +377,10 @@ def handle_results(result):
 
 
 if __name__ == '__main__':
-    test = False
+    test = True
     if test:
         # 回测用
-        print(XShare.back_test('600644', '2025-04-09'))
+        print(XShare.back_test('601398', '2023-03-10', period='weekly'))
     else:
         XShare.update_packet()
         # 分析A股
