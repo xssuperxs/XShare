@@ -18,13 +18,24 @@ import time
 class XShare:
     """ 道 """
     # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
-    __WINDOW_SIZE = 6
+    __WINDOW_SIZE = 7
     # 记录数
     __RECORD_COUNT = 150
     # 上市天数
     __ON_MARKET_DAYS = 400
     # 创新低天数
-    __NEW_LOW_DAYS = 30
+    __NEW_LOW_DAYS = 18
+
+    # 缓存文件
+    __A_DAILY_FILE = 0
+    __A_WEEKLY_FILE = 1
+    __AH_DAILY_FILE = 2
+
+    __STOCK_CACHE_FILE_DICT = {
+        0: 'A_daily.csv',
+        1: 'A_weekly.csv',
+        2: 'AH_daily.csv'
+    }
 
     @staticmethod
     def __filteringCode(stock_code: string):
@@ -183,12 +194,8 @@ class XShare:
                 return True
 
             macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-
-            if len(macd.macd_diff()) < preHighIndex or len(macd.macd_diff()) < preLowIndex:
-                continue
-            pre_high_dea = macd.macd_signal().iloc[preHighIndex]
-
-            if pre_high_dea > 0:
+            pre_low_dea = macd.macd_signal().iloc[preLowIndex]
+            if pre_low_dea > 0:
                 continue
 
             # 获取最低点向前的N条记录
@@ -198,18 +205,6 @@ class XShare:
                 return True
 
         return False
-
-    @staticmethod
-    def __strategy_double_bottom(df_tail_150, stock_info):
-        """
-         双底
-        :param df_tail_150:
-        :param stock_info:
-        :return:bool
-        """
-        # 当天低点 和前低 差不多
-        # 高点到今天要是MACD 红柱
-        pass
 
     @staticmethod
     def __analyze_single(code, socket_market, period='daily', end_date=''):
@@ -263,7 +258,7 @@ class XShare:
     @staticmethod
     def __thread_analysis(stock_codes, stock_market, period):
         # 将股票代码分组
-        groups = np.array_split(stock_codes, 10)
+        groups = np.array_split(stock_codes, len(stock_codes) // 2)
 
         # 用于存储结果的队列
         result_queue = Queue()
@@ -329,11 +324,24 @@ class XShare:
 
     @staticmethod
     def analysisA(period='daily'):
+        """
+          分析A股 各股
+        """
+        return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
+
+    @staticmethod
+    def analysisAIndex(period='daily'):
+        """
+        分析A股各个板块的指数
+        """
         return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
 
     @staticmethod
     def analysisAH():
-        return XShare.__thread_analysis(XShare.__get_stock_codes(1), 1)
+        """
+          分析港股
+        """
+        return XShare.__thread_analysis(XShare.__get_stock_codes(1), 1, period='daily')
 
     @staticmethod
     def update_packet():
@@ -377,10 +385,10 @@ def handle_results(result):
 
 
 if __name__ == '__main__':
-    test = True
+    test = False
     if test:
         # 回测用
-        print(XShare.back_test('601398', '2023-03-10', period='weekly'))
+        print(XShare.back_test('002317', '2025-04-22', period='daily'))
     else:
         XShare.update_packet()
         # 分析A股
