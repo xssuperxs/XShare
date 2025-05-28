@@ -13,46 +13,20 @@ import pandas as pd
 import subprocess
 import sys
 import time
+import baostock as bs
+from tqdm import tqdm
 
 
 class XShare:
-    """ 道 """
+    """   """
     # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
     __WINDOW_SIZE = 7
     # 记录数
-    __RECORD_COUNT = 150
+    __RECORD_COUNT = 100
     # 上市天数
     __ON_MARKET_DAYS = 400
     # 创新低天数
     __NEW_LOW_DAYS = 18
-
-    # 缓存文件
-    __A_DAILY_FILE = 0
-    __A_WEEKLY_FILE = 1
-    __AH_DAILY_FILE = 2
-
-    __STOCK_CACHE_FILE_DICT = {
-        0: 'A_daily.csv',
-        1: 'A_weekly.csv',
-        2: 'AH_daily.csv'
-    }
-
-    @staticmethod
-    def __filteringCode(stock_code: string):
-        """
-        过滤A股股票
-        :param stock_code: code
-        :return: true
-        """
-        if stock_code.startswith('8'):
-            return False
-        if stock_code.startswith('4'):
-            return False
-        if stock_code.startswith('9'):
-            return False
-        if stock_code.startswith('688'):
-            return False
-        return True
 
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
@@ -117,7 +91,7 @@ class XShare:
         return wave_highs_index, wave_lows_index
 
     @staticmethod
-    def back_test(code, end_date, period='daily'):
+    def back_test(code, end_date, period='d'):
         """
         测试用
         :param period: 周期
@@ -125,7 +99,45 @@ class XShare:
         :param end_date: 结束时间
         :return: 失败False  成功 类型码
         """
-        return XShare.__analyze_single(code, 0, period, end_date)
+        df = XShare.__get_kline_info(code, period)
+        df['date'] = pd.to_datetime(df['date'])  # 转换日期列
+        target_date = pd.to_datetime(end_date)
+        target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
+        start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
+        df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
+
+        return XShare.__strategy_bottomUpFlip(df_tail_150, period)
+
+    @staticmethod
+    def __get_kline_info(code, period='d'):
+        stock_prefix = ''
+        if code.startswith(('6', '9', '688')):  # 上海: 6/688/900
+            stock_prefix = 'sh.'
+        elif code.startswith(('0', '3', '2')):  # 深圳: 0/3/200
+            stock_prefix = 'sz.'
+        if stock_prefix == '':
+            return pd.DataFrame()
+        code = stock_prefix + code
+
+        # 获取所有历史K线数据（从上市日期至今）
+        rs = bs.query_history_k_data_plus(
+            code=code,
+            fields="date,open,close,high,low,volume",  # 字段可调整
+            start_date="1990-01-01",  # 尽可能早的日期
+            end_date="2030-12-31",  # 未来日期确保覆盖最新数据
+            frequency=period,  # d=日线，w=周线，m=月线
+            adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
+        )
+        data_list = []
+        while (rs.error_code == '0') & rs.next():
+            data_list.append(rs.get_row_data())
+
+        df = pd.DataFrame(data_list, columns=rs.fields)
+
+        float_cols = ['open', 'close', 'high', 'low', 'volume']
+        # 转换并保留两位小数
+        df[float_cols] = df[float_cols].apply(pd.to_numeric, errors='coerce').round(2)
+        return df
 
     @staticmethod
     def __strategy_bottomUpFlip(df_klines: pd.DataFrame, period='daily') -> bool:
@@ -207,141 +219,49 @@ class XShare:
         return False
 
     @staticmethod
-    def __analyze_single(code, socket_market, period='daily', end_date=''):
-
-        column_mapping = {
-            "日期": "date",
-            "开盘": "open",
-            "最高": "high",
-            "最低": "low",
-            "收盘": "close",
-            "成交量": "volume",
-        }
-        if period == 'weekly':
-            XShare.__RECORD_COUNT = 100
-
-        try:
-            df = pd.DataFrame()
-            if socket_market == 0:
-                df = ak.stock_zh_a_hist(symbol=code, period=period, adjust="qfq")
-                # 过滤掉不需要的 科创板 北证
-                if not XShare.__filteringCode(code):
-                    return False
-                # A 股重新命名列  统一成英文的列名
-                df = df.rename(columns=column_mapping)
-
-            if socket_market == 1:
-                df = ak.stock_hk_daily(symbol=code, adjust="qfq")
-
-            if len(df) < XShare.__RECORD_COUNT:
-                return False
-
-            # 判断是否需要回测
-            if len(end_date) == 0:
-                df_tail_150 = df.tail(XShare.__RECORD_COUNT)
-            else:
-                df['date'] = pd.to_datetime(df['date'])  # 转换日期列
-                target_date = pd.to_datetime(end_date)
-                target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
-                start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
-                df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
-
-            # 破低翻
-            if XShare.__strategy_bottomUpFlip(df_tail_150, period):
-                return 1
-
-            return False
-        except Exception as e:
-            print(f"股票代码 {code} 处理失败，错误: {e}")
-            return False
-
-    @staticmethod
-    def __thread_analysis(stock_codes, stock_market, period):
-        # 将股票代码分组
-        groups = np.array_split(stock_codes, len(stock_codes) // 2)
-
-        # 用于存储结果的队列
-        result_queue = Queue()
-
-        # 开始分析的时间
-        start_time = time.time()
-        # 线程列表
-        threads = []
-
-        # 速率限制相关变量
-        rate_limit = 10  # 每秒最多10次调用
-        last_call_time = 0
-        rate_lock = threading.Lock()
-
-        def worker(stock_group, tp_stock_market, tp_period):
-            nonlocal last_call_time
-            ana_results = []
-            for code in stock_group:
-                # 速率控制
-                with rate_lock:
-                    # 计算需要等待的时间
-                    isElapsed = time.time() - last_call_time
-                    if isElapsed < 1.0 / rate_limit:
-                        time.sleep((1.0 / rate_limit) - isElapsed)
-                    last_call_time = time.time()
-
-                ret = XShare.__analyze_single(code=code, socket_market=tp_stock_market, period=tp_period, end_date='')
-                if ret in {1, 2, 3}:
-                    ana_results.append((ret, code))
-            result_queue.put(ana_results)
-
-        # 创建并启动线程
-        for group in groups:
-            t = threading.Thread(target=worker, args=(group, stock_market, period))
-            t.start()
-            threads.append(t)
-
-        # 等待所有线程完成
-        for t in threads:
-            t.join()
-
-        # 收集所有结果
-        analysis_results = []
-        while not result_queue.empty():
-            analysis_results.extend(result_queue.get())
-
-        str_results = [(x, str(y)) for x, y in analysis_results]
-
-        elapsed = time.time() - start_time
-        print(f"\n分析完成! 总耗时: {elapsed:.2f}秒")
-        return str_results
-
-    @staticmethod
     def __get_stock_codes(market=0):
         stocks_df = ak.stock_zh_a_spot_em() if market == 0 else ak.stock_hk_spot_em()
         stocks_df = stocks_df.dropna(subset=['今开'])
         stocks_df = stocks_df.dropna(subset=['成交量'])
         if market == 0:
-            # 过滤掉ST
+            # 过滤掉ST 0代表A股
             st_stocks_df = ak.stock_zh_a_st_em()
             stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
+            stocks_df = stocks_df[stocks_df['最高'] > stocks_df['昨收']]
         return stocks_df['代码'].to_list()
 
     @staticmethod
-    def analysisA(period='daily'):
+    def analysisA(period='d'):
         """
-          分析A股 各股
+        :param period:  d = 日K   w = 周K   m = 月K
+        :return:  返回A股股票 分析的结果
         """
-        return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
+        codes = XShare.__get_stock_codes(0)
+        ret_results = []
+
+        # 使用 tqdm 包装循环，并设置中文描述
+        for code in tqdm(codes, desc="A股 分析进度 ", unit="只"):
+            # 过滤掉暂时不需要的代码
+            if any(code.startswith(prefix) for prefix in ('8', '4', '9', '688')):
+                continue
+            # 提取K线信息
+            df = XShare.__get_kline_info(code, period)
+            if len(df) < XShare.__RECORD_COUNT or df.empty:
+                continue
+            # 提取需要N条K线
+            df_klines = df.tail(XShare.__RECORD_COUNT)
+            # 开始分析K线数据
+            if XShare.__strategy_bottomUpFlip(df_klines, period):
+                ret_results.append(code)
+        return ret_results
 
     @staticmethod
-    def analysisAIndex(period='daily'):
+    def analysisAIndex(period='d'):
+        pass
         """
-        分析A股各个板块的指数
+        分析A股行业指数
         """
-        return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
-
-    @staticmethod
-    def analysisAH():
-        """
-          分析港股
-        """
-        return XShare.__thread_analysis(XShare.__get_stock_codes(1), 1, period='daily')
+        # return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
 
     @staticmethod
     def update_packet():
@@ -362,38 +282,23 @@ def handle_results(result):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    groups = {}
-    for num, code in result:
-        if num not in groups:
-            groups[num] = []
-        groups[num].append(code)
-
-    # 提取分组
-    group1 = groups.get(1, [])
-
-    print("破底翻 ", len(group1), '只:', group1)
-
-    # 只输出破底翻
-    out_results = group1
-    # 输出3全部的分析结果 3种全保留
-    # out_results = group1 + group2
+    print("分析结果! ", len(result), '只:', result)
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
-        for item in out_results:
+        for item in result:
             file.write(f'{item}\n')
 
 
 if __name__ == '__main__':
-    test = False
+    lg = bs.login()  # 登录系统
+    test = True
     if test:
         # 回测用
-        print(XShare.back_test('002317', '2025-04-22', period='daily'))
+        print(XShare.back_test('300785', '2024-07-31', period='d'))
     else:
         XShare.update_packet()
         # 分析A股
         results = XShare.analysisA()
-        # 分析AH股 港股
-        # aResult = XShare.analysisAH()
-        # 处理分析结棍
         handle_results(results)
+    bs.logout()
