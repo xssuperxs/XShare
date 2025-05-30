@@ -15,6 +15,14 @@ import sys
 import time
 import baostock as bs
 from tqdm import tqdm
+import re
+
+
+def analysisA_industry():
+    pass
+    """
+    分析A股行业指数
+    """
 
 
 class XShare:
@@ -99,25 +107,17 @@ class XShare:
         :param end_date: 结束时间
         :return: 失败False  成功 类型码
         """
-        df = XShare.__get_kline_info(code, period)
+        df = XShare.__get_klines_akshare(code, period)
         df['date'] = pd.to_datetime(df['date'])  # 转换日期列
         target_date = pd.to_datetime(end_date)
         target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
         start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
-        df_tail_150 = df.iloc[start_index: target_index + 1]  # 包含目标日
+        df_klines = df.iloc[start_index: target_index + 1]  # 包含目标日
 
-        return XShare.__strategy_bottomUpFlip(df_tail_150, period)
+        return XShare.__strategy_bottomUpFlip(df_klines, period)
 
     @staticmethod
-    def __get_kline_info(code, period='d'):
-        stock_prefix = ''
-        if code.startswith(('6', '9', '688')):  # 上海: 6/688/900
-            stock_prefix = 'sh.'
-        elif code.startswith(('0', '3', '2')):  # 深圳: 0/3/200
-            stock_prefix = 'sz.'
-        if stock_prefix == '':
-            return pd.DataFrame()
-        code = stock_prefix + code
+    def __get_klines_baostock(code, period='d'):
 
         # 获取所有历史K线数据（从上市日期至今）
         rs = bs.query_history_k_data_plus(
@@ -133,6 +133,8 @@ class XShare:
             data_list.append(rs.get_row_data())
 
         df = pd.DataFrame(data_list, columns=rs.fields)
+        if df.empty:
+            return df
 
         float_cols = ['open', 'close', 'high', 'low', 'volume']
         # 转换并保留两位小数
@@ -140,115 +142,157 @@ class XShare:
         return df
 
     @staticmethod
-    def __strategy_bottomUpFlip(df_klines: pd.DataFrame, period='daily') -> bool:
+    def __get_klines_akshare(code, period='d'):
+        v_period = 'daily' if period == 'd' else 'weekly'
+        column_mapping_hist = {
+            "日期": "date",
+            "开盘": "open",
+            "收盘": "close",
+            "最高": "high",
+            "最低": "low",
+            "成交量": "volume"
+        }
+        df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq")
+
+        save_columns = [col for col in column_mapping_hist.keys() if col in df.columns]
+        df = df[save_columns].rename(columns=column_mapping_hist)
+        # A 股重新命名列  统一成英文的列名
+        return df.rename(columns=column_mapping_hist)
+
+    @staticmethod
+    def __strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
         """
-        :param df_klines:   最近 N天的交易记录
+        :param df_klines:   最近 N天的交易记录 不要小于100条记录
         :return:  bool
         """
-
-        today_doc = df_klines.iloc[-1]
-        yesterday_doc = df_klines.iloc[-2]
-
-        today_high = today_doc['high']
-        today_low = today_doc['low']
-        yesterday_high = yesterday_doc['high']
-        yesterday_low = yesterday_doc['low']
-
-        if yesterday_high > today_high:
+        # K线小于100条记录 返回FALSE
+        if len(df_klines) < XShare.__RECORD_COUNT or df_klines.empty:
             return False
 
-        # 获取需要的时间窗口
-        nSubWindow = [i for i in range(3, XShare.__WINDOW_SIZE)]
+        try:
+            today_doc = df_klines.iloc[-1]
+            yesterday_doc = df_klines.iloc[-2]
 
-        for n in nSubWindow:
+            today_high = today_doc['high']
+            today_low = today_doc['low']
+            yesterday_high = yesterday_doc['high']
+            yesterday_low = yesterday_doc['low']
 
-            # 获取波段的 高低点
-            highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
+            if yesterday_high > today_high:
+                return False
 
-            if len(highs_index) < 2 or len(highs_index) < 2:
-                continue
+            # 获取需要的时间窗口
+            nSubWindow = [i for i in range(3, XShare.__WINDOW_SIZE)]
 
-            preHighIndex = highs_index[-1]
-            preLowIndex = lows_index[-1]
-            preLow2Index = lows_index[-2]
+            for n in nSubWindow:
 
-            preHighPrice = df_klines.iloc[preHighIndex]['high']
-            preLowPrice = df_klines.iloc[preLowIndex]['low']
-            preLow2Price = df_klines.iloc[preLow2Index]['low']
+                # 获取波段的 高低点
+                highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
 
-            # 当天高点要过前高
-            if today_high <= preHighPrice:
-                continue
-            # 昨天高点不能过前高
-            if yesterday_high >= preHighPrice:
-                continue
+                if len(highs_index) < 3 or len(highs_index) < 3:
+                    continue
 
-            if today_low < preLowPrice or yesterday_low < preLowPrice:
-                preLow2Price = preLowPrice
-                minPrice = min([today_low, yesterday_low])
-                if minPrice == today_low:
-                    preLowPrice = today_low
-                    preLowIndex = XShare.__RECORD_COUNT - 1
-                if minPrice == yesterday_low:
-                    preLowIndex = XShare.__RECORD_COUNT - 2
-                    preLowPrice = yesterday_low
+                preHighIndex = highs_index[-1]
+                preLowIndex = lows_index[-1]
+                preLow2Index = lows_index[-2]
 
-            # 前低索引要大
-            if preHighIndex > preLowIndex:
-                continue
+                preHighPrice = df_klines.iloc[preHighIndex]['high']
+                preLowPrice = df_klines.iloc[preLowIndex]['low']
+                preLow2Price = df_klines.iloc[preLow2Index]['low']
 
-            # 判断是不是破底翻
-            if preLowPrice > preLow2Price:
-                continue
+                # 当天高点要过前高
+                if today_high <= preHighPrice:
+                    continue
+                # 昨天高点不能过前高
+                if yesterday_high >= preHighPrice:
+                    continue
 
-            # 如果是分析周线 这里直接返回True
-            if period == 'weekly':
-                return True
+                if today_low < preLowPrice or yesterday_low < preLowPrice:
+                    preLow2Price = preLowPrice
+                    minPrice = min([today_low, yesterday_low])
+                    if minPrice == today_low:
+                        preLowPrice = today_low
+                        preLowIndex = XShare.__RECORD_COUNT - 1
+                    if minPrice == yesterday_low:
+                        preLowIndex = XShare.__RECORD_COUNT - 2
+                        preLowPrice = yesterday_low
 
-            macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-            pre_low_dea = macd.macd_signal().iloc[preLowIndex]
-            if pre_low_dea > 0:
-                continue
+                # 前低索引要大
+                if preHighIndex > preLowIndex:
+                    continue
 
-            # 获取最低点向前的N条记录
-            subset = df_klines.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-            n_day_low_price = subset['low'].min()
-            if preLowPrice <= n_day_low_price:
-                return True
+                # 判断是不是破底翻
+                if preLowPrice > preLow2Price:
+                    continue
 
-        return False
+                # 如果是分析周线 这里直接返回True
+                if period == 'w':
+                    return True
+
+                macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+                pre_low_dea = macd.macd_signal().iloc[preLowIndex]
+                if pre_low_dea > 0:
+                    continue
+
+                # 获取最低点向前的N条记录
+                subset = df_klines.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
+                n_day_low_price = subset['low'].min()
+                if preLowPrice <= n_day_low_price:
+                    return True
+            return False
+        except Exception as e:
+            # 处理其他异常
+            print(f"发生未知错误: {e}")
+            return False
 
     @staticmethod
     def __get_stock_codes(market=0):
-        stocks_df = ak.stock_zh_a_spot_em() if market == 0 else ak.stock_hk_spot_em()
-        stocks_df = stocks_df.dropna(subset=['今开'])
-        stocks_df = stocks_df.dropna(subset=['成交量'])
-        if market == 0:
-            # 过滤掉ST 0代表A股
-            st_stocks_df = ak.stock_zh_a_st_em()
-            stocks_df = stocks_df[~stocks_df['代码'].isin(st_stocks_df['代码'])]
-            stocks_df = stocks_df[stocks_df['最高'] > stocks_df['昨收']]
-        return stocks_df['代码'].to_list()
+
+        # 获取最后一个交易日
+        sh_index_daily = ak.stock_zh_index_daily(symbol="sh000001")
+        last_trade_date = sh_index_daily['date'].iloc[-1]
+
+        # 查询A股的 股票 和指数 代码
+        rs = bs.query_all_stock(day=str(last_trade_date))
+
+        data_list = []
+        while (rs.error_code == '0') & rs.next():
+            # 获取一条记录，将记录合并在一起
+            data_list.append(rs.get_row_data())
+        df_all_codes = pd.DataFrame(data_list, columns=rs.fields)
+
+        # 过滤掉ST 和 没交易的
+        df_filtered = df_all_codes[
+            (~df_all_codes['code_name'].str.contains(r'ST|\*ST', case=False, na=False)) &
+            (df_all_codes['tradeStatus'] == '1')
+            ]
+        return df_filtered['code'].to_list()
 
     @staticmethod
     def analysisA(period='d'):
         """
+        分析 A股的 个股  和 指数
         :param period:  d = 日K   w = 周K   m = 月K
         :return:  返回A股股票 分析的结果
         """
         codes = XShare.__get_stock_codes(0)
+        if len(codes) == 0:
+            print('获取股票代码失败')
+            return []
         ret_results = []
 
+        # 过滤掉不需要的个股 北证 和 688 开的
+        pattern = r"\.9|\.8|\.4|\.688"
         # 使用 tqdm 包装循环，并设置中文描述
         for code in tqdm(codes, desc="A股 分析进度 ", unit="只"):
             # 过滤掉暂时不需要的代码
-            if any(code.startswith(prefix) for prefix in ('8', '4', '9', '688')):
+            if re.search(pattern, code):
                 continue
-            # 提取K线信息
-            df = XShare.__get_kline_info(code, period)
+            # 提取历史K线信息
+            df = XShare.__get_klines_baostock(code, period)
             if len(df) < XShare.__RECORD_COUNT or df.empty:
                 continue
-            # 提取需要N条K线
+            # 提取需要的N条K线记录
             df_klines = df.tail(XShare.__RECORD_COUNT)
             # 开始分析K线数据
             if XShare.__strategy_bottomUpFlip(df_klines, period):
@@ -256,24 +300,21 @@ class XShare:
         return ret_results
 
     @staticmethod
-    def analysisAIndex(period='d'):
-        pass
+    def update_libs():
         """
-        分析A股行业指数
-        """
-        # return XShare.__thread_analysis(XShare.__get_stock_codes(0), 0, period)
-
-    @staticmethod
-    def update_packet():
-        """
-        更新 akshare
+        更新 需要的库 pip akshare baostock
         :return:
         """
-        print('update akshare...')
+        print('updating libs......')
+        # 更新PIP
         subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
-        # 安装或升级 akshare
+        # 更新akshare
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"],
+                              stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
+        # 更新baostock
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "baostock"],
                               stdout=subprocess.DEVNULL,
                               stderr=subprocess.DEVNULL)
 
@@ -295,9 +336,9 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(XShare.back_test('300785', '2024-07-31', period='d'))
+        print(XShare.back_test('301191', '2025-05-29', period='d'))
     else:
-        XShare.update_packet()
+        XShare.update_libs()
         # 分析A股
         results = XShare.analysisA()
         handle_results(results)
