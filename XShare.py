@@ -16,6 +16,8 @@ import time
 import baostock as bs
 from tqdm import tqdm
 import re
+from dateutil.relativedelta import relativedelta
+from rich.progress import track
 
 
 def analysisA_industry():
@@ -246,7 +248,12 @@ class XShare:
             return False
 
     @staticmethod
-    def __get_stock_codes(market=0):
+    def __get_last_trade_date():
+        df = ak.stock_zh_index_daily('sh000001')
+        return df['date'].iloc[-1]
+
+    @staticmethod
+    def __query_A_stock_codes():
 
         # 获取最后一个交易日
         sh_index_daily = ak.stock_zh_index_daily(symbol="sh000001")
@@ -260,6 +267,9 @@ class XShare:
             # 获取一条记录，将记录合并在一起
             data_list.append(rs.get_row_data())
         df_all_codes = pd.DataFrame(data_list, columns=rs.fields)
+        if df_all_codes.empty:
+            print("baostock 数据有可能没更新完, 请稍后再试")
+            return []
 
         # 过滤掉ST 和 没交易的
         df_filtered = df_all_codes[
@@ -275,7 +285,7 @@ class XShare:
         :param period:  d = 日K   w = 周K   m = 月K
         :return:  返回A股股票 分析的结果
         """
-        codes = XShare.__get_stock_codes(0)
+        codes = XShare.__query_A_stock_codes()
         if len(codes) == 0:
             print('获取股票代码失败')
             return []
@@ -296,7 +306,57 @@ class XShare:
             df_klines = df.tail(XShare.__RECORD_COUNT)
             # 开始分析K线数据
             if XShare.__strategy_bottomUpFlip(df_klines, period):
+                code = code.split(".")[-1]
                 ret_results.append(code)
+        return ret_results
+
+    @staticmethod
+    def analysisA_industry_em(period='d'):
+        """
+        分析A股的 行业板块 东方财富
+        :param period:
+        :return:
+        """
+        v_period = '日k' if period == 'd' else '周k'
+
+        # 获取最后一个交易日
+        last_trade_date = XShare.__get_last_trade_date()
+        # 取一年的K线足够用了
+        previous_year_date = last_trade_date - relativedelta(years=1)
+        start_date = previous_year_date.strftime("%Y%m%d")
+        end_date = last_trade_date.strftime("%Y%m%d")  # 输出 '20301230'
+
+        # 获取行业板块的名称和代码
+        df = ak.stock_board_industry_name_em()
+        # 只保留名称和代码
+        dict_data = {row['板块名称']: row['板块代码'] for _, row in df.iterrows()}
+        name_list = list(dict_data.keys())
+        column_mapping = {
+            "开盘": "open",
+            "最高": "high",
+            "最低": "low",
+            "收盘": "close",
+            "成交量": "volume",
+        }
+        ret_results = []
+        for name in tqdm(name_list, desc="分析板块..."):
+            df = ak.stock_board_industry_hist_em(
+                symbol=name,
+                start_date=start_date,
+                end_date=end_date,
+                period=v_period
+            )
+            # 数据清洗
+            df = df[list(column_mapping.keys())].rename(columns=column_mapping)
+
+            if len(df) < XShare.__RECORD_COUNT:
+                continue
+
+            # 策略分析
+            df_klines = df.tail(XShare.__RECORD_COUNT)
+            if XShare.__strategy_bottomUpFlip(df_klines, period):
+                ret_results.append(dict_data[name])
+
         return ret_results
 
     @staticmethod
@@ -333,13 +393,12 @@ def handle_results(result):
 
 if __name__ == '__main__':
     lg = bs.login()  # 登录系统
-    test = True
+    test = False
     if test:
         # 回测用
         print(XShare.back_test('301191', '2025-05-29', period='d'))
     else:
         XShare.update_libs()
-        # 分析A股
-        results = XShare.analysisA()
-        handle_results(results)
+        # handle_results(XShare.analysisA() + XShare.analysisA_industry_em())
+        handle_results(XShare.analysisA_industry_em())
     bs.logout()
