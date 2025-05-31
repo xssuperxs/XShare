@@ -3,28 +3,15 @@ import time
 
 import akshare as ak
 from collections import Counter
-
-import numpy as np
 from ta.trend import MACD
-import threading
-from queue import Queue
 import pandas as pd
-
 import subprocess
 import sys
-import time
+
 import baostock as bs
 from tqdm import tqdm
 import re
 from dateutil.relativedelta import relativedelta
-from rich.progress import track
-
-
-def analysisA_industry():
-    pass
-    """
-    分析A股行业指数
-    """
 
 
 class XShare:
@@ -156,10 +143,13 @@ class XShare:
         }
         df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq")
 
-        save_columns = [col for col in column_mapping_hist.keys() if col in df.columns]
-        df = df[save_columns].rename(columns=column_mapping_hist)
-        # A 股重新命名列  统一成英文的列名
-        return df.rename(columns=column_mapping_hist)
+        # 数据清洗
+        return df[list(column_mapping_hist.keys())].rename(columns=column_mapping_hist)
+
+        # save_columns = [col for col in column_mapping_hist.keys() if col in df.columns]
+        # df = df[save_columns].rename(columns=column_mapping_hist)
+        # # A 股重新命名列  统一成英文的列名
+        # return df.rename(columns=column_mapping_hist)
 
     @staticmethod
     def __strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
@@ -294,7 +284,8 @@ class XShare:
         # 过滤掉不需要的个股 北证 和 688 开的
         pattern = r"\.9|\.8|\.4|\.688"
         # 使用 tqdm 包装循环，并设置中文描述
-        for code in tqdm(codes, desc="A股 分析进度 ", unit="只"):
+        print('[INFO] 正在分析A股的股票和指数...')
+        for code in tqdm(codes, desc="进度 ", unit="只"):
             # 过滤掉暂时不需要的代码
             if re.search(pattern, code):
                 continue
@@ -308,6 +299,7 @@ class XShare:
             if XShare.__strategy_bottomUpFlip(df_klines, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
+        print('[INFO] A股的股票和指数分析完成！')
         return ret_results
 
     @staticmethod
@@ -339,6 +331,7 @@ class XShare:
             "成交量": "volume",
         }
         ret_results = []
+        print('[INFO] 正在分析A股的行业板块...')
         for name in tqdm(name_list, desc="分析板块..."):
             df = ak.stock_board_industry_hist_em(
                 symbol=name,
@@ -356,27 +349,40 @@ class XShare:
             df_klines = df.tail(XShare.__RECORD_COUNT)
             if XShare.__strategy_bottomUpFlip(df_klines, period):
                 ret_results.append(dict_data[name])
-
+        print('[INFO] A股行业板块分析完成')
         return ret_results
 
     @staticmethod
-    def update_libs():
+    def update_packets():
         """
-        更新 需要的库 pip akshare baostock
-        :return:
+        更新需要的库（pip、akshare、baostock），并显示进度条
+        :return: None
         """
-        print('updating libs......')
-        # 更新PIP
-        subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL)
-        # 更新akshare
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "akshare"],
-                              stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL)
-        # 更新baostock
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "baostock"],
-                              stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL)
+        # 需要更新的包列表
+        packages = [
+            {"name": "pip", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "pip"]},
+            {"name": "akshare", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "akshare"]},
+            {"name": "baostock", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "baostock"]}
+        ]
+        print('[INFO] Updating required packages...')
+
+        # 使用 tqdm 显示进度
+        with tqdm(packages, desc="Updating", unit="package") as pbar:
+            for package in pbar:
+                pbar.set_postfix_str(f"Current: {package['name']}")
+                try:
+                    # 静默安装，避免输出干扰进度条
+                    subprocess.check_call(
+                        package["command"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                except subprocess.CalledProcessError as e:
+                    tqdm.write(f"[ERROR] Failed to update {package['name']}: {e}")
+                except Exception as e:
+                    tqdm.write(f"[ERROR] Unexpected error with {package['name']}: {e}")
+
+        print('[INFO] All packages updated successfully!')
 
 
 def handle_results(result):
@@ -398,7 +404,7 @@ if __name__ == '__main__':
         # 回测用
         print(XShare.back_test('301191', '2025-05-29', period='d'))
     else:
-        XShare.update_libs()
+        XShare.update_packets()
+        # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
         # handle_results(XShare.analysisA() + XShare.analysisA_industry_em())
-        handle_results(XShare.analysisA_industry_em())
     bs.logout()
