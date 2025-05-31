@@ -243,11 +243,10 @@ class XShare:
         return df['date'].iloc[-1]
 
     @staticmethod
-    def __query_A_stock_codes():
+    def __query_A_stock_codes_baostock():
 
         # 获取最后一个交易日
-        sh_index_daily = ak.stock_zh_index_daily(symbol="sh000001")
-        last_trade_date = sh_index_daily['date'].iloc[-1]
+        last_trade_date = XShare.__get_last_trade_date()
 
         # 查询A股的 股票 和指数 代码
         rs = bs.query_all_stock(day=str(last_trade_date))
@@ -258,7 +257,6 @@ class XShare:
             data_list.append(rs.get_row_data())
         df_all_codes = pd.DataFrame(data_list, columns=rs.fields)
         if df_all_codes.empty:
-            print("baostock 数据有可能没更新完, 请稍后再试")
             return []
 
         # 过滤掉ST 和 没交易的
@@ -275,9 +273,9 @@ class XShare:
         :param period:  d = 日K   w = 周K   m = 月K
         :return:  返回A股股票 分析的结果
         """
-        codes = XShare.__query_A_stock_codes()
-        if len(codes) == 0:
-            print('获取股票代码失败')
+        codes = XShare.__query_A_stock_codes_baostock()
+        if not codes:
+            print("baostock 数据有可能没更新完成, 请稍后再试")
             return []
         ret_results = []
 
@@ -285,7 +283,7 @@ class XShare:
         pattern = r"\.9|\.8|\.4|\.688"
         # 使用 tqdm 包装循环，并设置中文描述
         print('[INFO] 分析A股的股票和指数...')
-        for code in tqdm(codes, desc="正在分析 ", unit="只"):
+        for code in tqdm(codes, desc="分析进度", unit="只"):
             # 过滤掉暂时不需要的代码
             if re.search(pattern, code):
                 continue
@@ -332,7 +330,7 @@ class XShare:
         }
         ret_results = []
         print('[INFO] 分析A股的行业板块...')
-        for name in tqdm(name_list, desc="正在分析"):
+        for name in tqdm(name_list, desc="分析进度"):
             df = ak.stock_board_industry_hist_em(
                 symbol=name,
                 start_date=start_date,
@@ -407,5 +405,4 @@ if __name__ == '__main__':
         XShare.update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
         handle_results(XShare.analysisA() + XShare.analysisA_industry_em())
-        # handle_results(XShare.analysisA_industry_em())
     bs.logout()
