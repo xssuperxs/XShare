@@ -21,39 +21,6 @@ __STOCK_CACHE_FILE_DICT = {
 }
 
 
-def get_klines_baostock(code, period='d'):
-    stock_prefix = ''
-    if code.startswith(('6', '9', '688')):  # 上海: 6/688/900
-        stock_prefix = 'sh.'
-    elif code.startswith(('0', '3', '2')):  # 深圳: 0/3/200
-        stock_prefix = 'sz.'
-    if stock_prefix == '':
-        return pd.DataFrame()
-    code = stock_prefix + code
-
-    # 获取所有历史K线数据（从上市日期至今）
-    rs = bs.query_history_k_data_plus(
-        code=code,
-        fields="date,open,close,high,low,volume",  # 字段可调整
-        start_date="1990-01-01",  # 尽可能早的日期
-        end_date="2030-12-31",  # 未来日期确保覆盖最新数据
-        frequency=period,  # d=日线，w=周线，m=月线
-        adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
-    )
-    data_list = []
-    while (rs.error_code == '0') & rs.next():
-        data_list.append(rs.get_row_data())
-
-    df = pd.DataFrame(data_list, columns=rs.fields)
-    if df.empty:
-        return df
-
-    float_cols = ['open', 'close', 'high', 'low', 'volume']
-    # 转换并保留两位小数
-    df[float_cols] = df[float_cols].apply(pd.to_numeric, errors='coerce').round(2)
-    return df
-
-
 def update_stock_cache(stock_market):
     # 确保cache目录存在
     cache_dir = 'cache'

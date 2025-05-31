@@ -96,24 +96,24 @@ class XShare:
         :param end_date: 结束时间
         :return: 失败False  成功 类型码
         """
-        df = XShare.__get_klines_akshare(code, period)
-        df['date'] = pd.to_datetime(df['date'])  # 转换日期列
-        target_date = pd.to_datetime(end_date)
-        target_index = df[df['date'] == target_date].index[0]  # 获取该日期的行索引
-        start_index = max(0, target_index - (XShare.__RECORD_COUNT - 1))  # 确保不越界（150条含目标日）
-        df_klines = df.iloc[start_index: target_index + 1]  # 包含目标日
+        start_date, _ = XShare.__get_last_trade_date("%Y%m%d")
 
-        return XShare.__strategy_bottomUpFlip(df_klines, period)
+        df = XShare.__get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
+
+        if df.empty or len(df) < XShare.__RECORD_COUNT:
+            return False
+        return XShare.__strategy_bottomUpFlip(df.tail(XShare.__RECORD_COUNT), period)
 
     @staticmethod
     def __get_klines_baostock(code, period='d'):
 
+        start_date, end_date = XShare.__get_last_trade_date("%Y-%m-%d")
         # 获取所有历史K线数据（从上市日期至今）
         rs = bs.query_history_k_data_plus(
             code=code,
             fields="date,open,close,high,low,volume",  # 字段可调整
-            start_date="1990-01-01",  # 尽可能早的日期
-            end_date="2030-12-31",  # 未来日期确保覆盖最新数据
+            start_date=start_date,  # 尽可能早的日期
+            end_date=end_date,  # 未来日期确保覆盖最新数据
             frequency=period,  # d=日线，w=周线，m=月线
             adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
         )
@@ -131,7 +131,7 @@ class XShare:
         return df
 
     @staticmethod
-    def __get_klines_akshare(code, period='d'):
+    def __get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
         v_period = 'daily' if period == 'd' else 'weekly'
         column_mapping_hist = {
             "日期": "date",
@@ -141,7 +141,7 @@ class XShare:
             "最低": "low",
             "成交量": "volume"
         }
-        df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq")
+        df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq", start_date=start_date, end_date=end_date)
 
         # 数据清洗
         return df[list(column_mapping_hist.keys())].rename(columns=column_mapping_hist)
@@ -238,18 +238,24 @@ class XShare:
             return False
 
     @staticmethod
-    def __get_last_trade_date():
+    def __get_last_trade_date(date_format='%Y%m%d'):
         df = ak.stock_zh_index_daily('sh000001')
-        return df['date'].iloc[-1]
+        last_trade_date = df['date'].iloc[-1]
+
+        # 取一年的K线足够用了
+        previous_year_date = last_trade_date - relativedelta(years=1)
+        start_date = previous_year_date.strftime(date_format)
+        end_date = last_trade_date.strftime(date_format)  # 输出 '20301230'
+        return start_date, end_date
 
     @staticmethod
     def __query_A_stock_codes_baostock():
 
         # 获取最后一个交易日
-        last_trade_date = XShare.__get_last_trade_date()
+        _, end_date = XShare.__get_last_trade_date("%Y-%m-%d")
 
         # 查询A股的 股票 和指数 代码
-        rs = bs.query_all_stock(day=str(last_trade_date))
+        rs = bs.query_all_stock(day=end_date)
 
         data_list = []
         while (rs.error_code == '0') & rs.next():
@@ -282,7 +288,7 @@ class XShare:
         # 过滤掉不需要的个股 北证 和 688 开的
         pattern = r"\.9|\.8|\.4|\.688"
         # 使用 tqdm 包装循环，并设置中文描述
-        print('[INFO] 分析A股的股票和指数...')
+        print('[INFO] A股的股票和指数分析中...')
         for code in tqdm(codes, desc="分析进度", unit="只"):
             # 过滤掉暂时不需要的代码
             if re.search(pattern, code):
@@ -297,7 +303,6 @@ class XShare:
             if XShare.__strategy_bottomUpFlip(df_klines, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
-        print('[INFO] A股的股票和指数分析完成！')
         return ret_results
 
     @staticmethod
@@ -309,12 +314,8 @@ class XShare:
         """
         v_period = '日k' if period == 'd' else '周k'
 
-        # 获取最后一个交易日
-        last_trade_date = XShare.__get_last_trade_date()
-        # 取一年的K线足够用了
-        previous_year_date = last_trade_date - relativedelta(years=1)
-        start_date = previous_year_date.strftime("%Y%m%d")
-        end_date = last_trade_date.strftime("%Y%m%d")  # 输出 '20301230'
+        # 获取需要提取记录的间隔
+        start_date, end_date = XShare.__get_last_trade_date()
 
         # 获取行业板块的名称和代码
         df = ak.stock_board_industry_name_em()
@@ -329,7 +330,7 @@ class XShare:
             "成交量": "volume",
         }
         ret_results = []
-        print('[INFO] 分析A股的行业板块...')
+        print('[INFO] A股的行业板块分析中...')
         for name in tqdm(name_list, desc="分析进度"):
             df = ak.stock_board_industry_hist_em(
                 symbol=name,
@@ -347,7 +348,6 @@ class XShare:
             df_klines = df.tail(XShare.__RECORD_COUNT)
             if XShare.__strategy_bottomUpFlip(df_klines, period):
                 ret_results.append(dict_data[name])
-        print('[INFO] A股行业板块分析完成！')
         return ret_results
 
     @staticmethod
@@ -387,7 +387,7 @@ def handle_results(result):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print("分析结果： ", len(result), '只:', result)
+    print("分析完成！： 符合策略的 ", len(result), '只:', result)
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
@@ -400,7 +400,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(XShare.back_test('301191', '2025-05-29', period='d'))
+        print(XShare.back_test('301191', '20250529', period='d'))
     else:
         XShare.update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
