@@ -284,8 +284,8 @@ class XShare:
         # 过滤掉不需要的个股 北证 和 688 开的
         pattern = r"\.9|\.8|\.4|\.688"
         # 使用 tqdm 包装循环，并设置中文描述
-        print('[INFO] 正在分析A股的股票和指数...')
-        for code in tqdm(codes, desc="进度 ", unit="只"):
+        print('[INFO] 分析A股的股票和指数...')
+        for code in tqdm(codes, desc="正在分析 ", unit="只"):
             # 过滤掉暂时不需要的代码
             if re.search(pattern, code):
                 continue
@@ -331,8 +331,8 @@ class XShare:
             "成交量": "volume",
         }
         ret_results = []
-        print('[INFO] 正在分析A股的行业板块...')
-        for name in tqdm(name_list, desc="分析板块..."):
+        print('[INFO] 分析A股的行业板块...')
+        for name in tqdm(name_list, desc="正在分析"):
             df = ak.stock_board_industry_hist_em(
                 symbol=name,
                 start_date=start_date,
@@ -349,7 +349,7 @@ class XShare:
             df_klines = df.tail(XShare.__RECORD_COUNT)
             if XShare.__strategy_bottomUpFlip(df_klines, period):
                 ret_results.append(dict_data[name])
-        print('[INFO] A股行业板块分析完成')
+        print('[INFO] A股行业板块分析完成！')
         return ret_results
 
     @staticmethod
@@ -389,7 +389,7 @@ def handle_results(result):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print("分析结果! ", len(result), '只:', result)
+    print("分析结果： ", len(result), '只:', result)
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
@@ -399,12 +399,13 @@ def handle_results(result):
 
 if __name__ == '__main__':
     lg = bs.login()  # 登录系统
-    test = False
+    test = True
     if test:
         # 回测用
         print(XShare.back_test('301191', '2025-05-29', period='d'))
     else:
         XShare.update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
-        # handle_results(XShare.analysisA() + XShare.analysisA_industry_em())
+        handle_results(XShare.analysisA() + XShare.analysisA_industry_em())
+        # handle_results(XShare.analysisA_industry_em())
     bs.logout()
