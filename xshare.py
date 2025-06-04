@@ -7,20 +7,20 @@ import subprocess
 import sys
 from tqdm import tqdm
 import re
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+__all__ = []
 # 滑动窗口 窗口越大 分析的结果有可能越多 合理调整  4是比较合理的
-MIN_WINDOW_SIZE = 3
-MAX_WINDOW_SIZE = 7
+_MIN_WINDOW_SIZE = 3
+_MAX_WINDOW_SIZE = 7
 # 记录数
-RECORD_COUNT = 100
-# 上市天数
-ON_MARKET_DAYS = 400
+_RECORD_COUNT = 100
 # 创新低天数
-NEW_LOW_DAYS = 18
+_NEW_LOW_DAYS = 21
 
 # akshare的映射列
-COL_MAPPING_AK = {
+_COL_MAPPING_AK = {
     "日期": "date",
     "开盘": "open",
     "最高": "high",
@@ -30,15 +30,15 @@ COL_MAPPING_AK = {
 }
 
 # 常量字符串
-STR_UPDATE_PACKAGES = "[INFO] Updating required packages..."
-STR_UPDATE_PACKAGES_SUCCESSFULLY = "[INFO] All packages updated successfully!"
-STR_A_STOCK_INDEX_ANALYSIS = "[INFO] A股 股票 指数 分析中..."
-STR_A_STOCK_INDUSTRY_ANALYSIS = "[INFO] A股 (东财)行业板块 分析中..."
-STR_ANALYSIS_PROGRESS = "Progress"
-STR_BAOSTOCK_NOT_UPDATE = "baostock 数据可能没更新完成, 请稍后再试!"
+_STR_UPDATE_PACKAGES = "[INFO] Updating required packages..."
+_STR_UPDATE_PACKAGES_SUCCESSFULLY = "[INFO] All packages updated successfully!"
+_STR_A_STOCK_INDEX_ANALYSIS = "[INFO] A股 股票 指数 分析中..."
+_STR_A_STOCK_INDUSTRY_ANALYSIS = "[INFO] A股 (东财)行业板块 分析中..."
+_STR_ANALYSIS_PROGRESS = "Progress"
+_STR_BAOSTOCK_NOT_UPDATE = "baostock 数据可能没更新完成, 请稍后再试!"
 
 
-def extractFrequentElements(input_list: list, nCount: int) -> list:
+def _extractFrequentElements(input_list: list, nCount: int) -> list:
     """
     提取波段的高低点
     :param input_list: high or low  list
@@ -51,7 +51,7 @@ def extractFrequentElements(input_list: list, nCount: int) -> list:
     return filtered_elements
 
 
-def getWavePoints(records, window_size, high_flag, low_flag):
+def _getWavePoints(records, window_size, high_flag, low_flag):
     """
     计算波段的高低点
     :param records:  要计算的记录
@@ -84,15 +84,15 @@ def getWavePoints(records, window_size, high_flag, low_flag):
         window_highs_index.append(high_index)
         window_lows_index.append(low_index)
 
-    wave_highs_index = extractFrequentElements(window_highs_index, window_size)
-    wave_lows_index = extractFrequentElements(window_lows_index, window_size)
+    wave_highs_index = _extractFrequentElements(window_highs_index, window_size)
+    wave_lows_index = _extractFrequentElements(window_lows_index, window_size)
 
     # 再把计算结果反转过来
     for i in range(len(wave_highs_index)):
-        wave_highs_index[i] = RECORD_COUNT - wave_highs_index[i] - 1
+        wave_highs_index[i] = _RECORD_COUNT - wave_highs_index[i] - 1
 
     for i in range(len(wave_lows_index)):
-        wave_lows_index[i] = RECORD_COUNT - wave_lows_index[i] - 1
+        wave_lows_index[i] = _RECORD_COUNT - wave_lows_index[i] - 1
 
     wave_highs_index = wave_highs_index[::-1]
     wave_lows_index = wave_lows_index[::-1]
@@ -107,17 +107,19 @@ def back_test(code, end_date, period='d'):
     :param end_date: 结束时间
     :return: 失败False  成功 类型码
     """
-    start_date, _ = get_last_trade_date("%Y%m%d")
+    start_date, _ = _get_last_trade_date("%Y%m%d",end_date)
+    if period == 'w':
+        start_date = "19700101"
 
-    df = get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
+    df = _get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
 
-    if df.empty or len(df) < RECORD_COUNT:
+    if df.empty or len(df) < _RECORD_COUNT:
         return False
-    return strategy_bottomUpFlip(df.tail(RECORD_COUNT), period)
+    return _strategy_bottomUpFlip(df.tail(_RECORD_COUNT), period)
 
 
-def get_klines_baostock(code, period='d'):
-    start_date, end_date = get_last_trade_date("%Y-%m-%d")
+def _get_klines_baostock(code, period='d'):
+    start_date, end_date = _get_last_trade_date("%Y-%m-%d")
     # 获取所有历史K线数据（从上市日期至今）
     rs = bs.query_history_k_data_plus(
         code=code,
@@ -141,14 +143,16 @@ def get_klines_baostock(code, period='d'):
     return df
 
 
-def get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
+def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
     v_period = 'daily' if period == 'd' else 'weekly'
     df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq", start_date=start_date, end_date=end_date)
+    if df.empty:
+        return pd.DataFrame()
     # 数据清洗
-    return df[list(COL_MAPPING_AK.keys())].rename(columns=COL_MAPPING_AK)
+    return df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
 
 
-def strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
+def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
     """
     用一个字形容 这个策略
 
@@ -157,7 +161,7 @@ def strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
     :return:  bool
     """
     # K线小于100条记录 返回FALSE
-    if len(df_klines) < RECORD_COUNT or df_klines.empty:
+    if len(df_klines) < _RECORD_COUNT or df_klines.empty:
         return False
 
     try:
@@ -173,12 +177,12 @@ def strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
             return False
 
         # 获取需要的时间窗口
-        nSubWindow = [i for i in range(MIN_WINDOW_SIZE, MAX_WINDOW_SIZE)]
+        nSubWindow = [i for i in range(_MIN_WINDOW_SIZE, _MAX_WINDOW_SIZE)]
 
         for n in nSubWindow:
 
             # 获取波段的 高低点
-            highs_index, lows_index = getWavePoints(df_klines, n, 'high', 'low')
+            highs_index, lows_index = _getWavePoints(df_klines, n, 'high', 'low')
 
             if len(highs_index) < 3 or len(highs_index) < 3:
                 continue
@@ -203,14 +207,39 @@ def strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
                 minPrice = min([today_low, yesterday_low])
                 if minPrice == today_low:
                     preLowPrice = today_low
-                    preLowIndex = RECORD_COUNT - 1
+                    preLowIndex = _RECORD_COUNT - 1
                 if minPrice == yesterday_low:
-                    preLowIndex = RECORD_COUNT - 2
+                    preLowIndex = _RECORD_COUNT - 2
                     preLowPrice = yesterday_low
 
             # 前低索引要大
             if preHighIndex > preLowIndex:
-                continue
+                if preLowPrice > preLow2Price:
+                    continue
+
+                highs_index_reversed = highs_index[::-1]
+                is_new_high = False
+                is_OK = True
+                pre_highs = []
+                for idx, item in enumerate(highs_index_reversed):
+                    original_idx = len(highs_index) - 1 - idx
+                    in_klines_index = highs_index[original_idx]
+                    if item < preLowIndex:  # 找到前低前面的高点
+                        preHighIndex = in_klines_index
+                        preHighPrice = df_klines.iloc[preHighIndex]['high']
+                        if today_high > preHighPrice > yesterday_high:
+                            is_new_high = True
+                        break
+                    else:
+                        pre_highs.append(in_klines_index)
+                if not is_new_high:
+                    continue
+                for index in pre_highs:
+                    if df_klines.iloc[index]['high'] > preHighPrice:
+                        is_OK = False
+                        break
+                if not is_OK:
+                    continue
 
             # 判断是不是破底翻
             if preLowPrice > preLow2Price:
@@ -226,7 +255,7 @@ def strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
                 continue
 
             # 获取最低点向前的N条记录
-            subset = df_klines.iloc[preLowIndex - NEW_LOW_DAYS: preLowIndex]
+            subset = df_klines.iloc[preLowIndex - _NEW_LOW_DAYS: preLowIndex]
             n_day_low_price = subset['low'].min()
             if preLowPrice <= n_day_low_price:
                 return True
@@ -237,9 +266,12 @@ def strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
         return False
 
 
-def get_last_trade_date(date_format='%Y%m%d'):
-    df = ak.stock_zh_index_daily('sh000001')
-    last_trade_date = df['date'].iloc[-1]
+def _get_last_trade_date(date_format='%Y%m%d', end_date=''):
+    if end_date != '':
+        last_trade_date = datetime.strptime(end_date, "%Y%m%d").date()
+    else:
+        df = ak.stock_zh_index_daily('sh000001')
+        last_trade_date = df['date'].iloc[-1]
 
     # 取一年的K线足够用了
     previous_year_date = last_trade_date - relativedelta(years=1)
@@ -248,9 +280,9 @@ def get_last_trade_date(date_format='%Y%m%d'):
     return start_date, end_date
 
 
-def query_A_stock_codes_baostock():
+def _query_A_stock_codes_baostock():
     # 获取最后一个交易日
-    _, end_date = get_last_trade_date("%Y-%m-%d")
+    _, end_date = _get_last_trade_date("%Y-%m-%d")
 
     # 查询A股的 股票 和指数 代码
     rs = bs.query_all_stock(day=end_date)
@@ -277,28 +309,27 @@ def analysisA(period='d'):
     :param period:  d = 日K   w = 周K   m = 月K
     :return:  返回A股股票 分析的结果
     """
-    codes = query_A_stock_codes_baostock()
+    codes = _query_A_stock_codes_baostock()
     if not codes:
-        print(STR_BAOSTOCK_NOT_UPDATE)
+        print(_STR_BAOSTOCK_NOT_UPDATE)
         return []
     ret_results = []
 
     # 过滤掉不需要的个股 北证 和 688 开的
     pattern = r"\.9|\.8|\.4|\.688"
     # 使用 tqdm 包装循环，并设置中文描述
-    print(STR_A_STOCK_INDEX_ANALYSIS)
-    for code in tqdm(codes, desc=STR_ANALYSIS_PROGRESS):
+    for code in tqdm(codes, desc=_STR_A_STOCK_INDEX_ANALYSIS + _STR_ANALYSIS_PROGRESS):
         # 过滤掉暂时不需要的代码
         if re.search(pattern, code):
             continue
         # 提取历史K线信息
-        df = get_klines_baostock(code, period)
-        if len(df) < RECORD_COUNT or df.empty:
+        df = _get_klines_baostock(code, period)
+        if len(df) < _RECORD_COUNT or df.empty:
             continue
         # 提取需要的N条K线记录
-        df_klines = df.tail(RECORD_COUNT)
+        df_klines = df.tail(_RECORD_COUNT)
         # 开始分析K线数据
-        if strategy_bottomUpFlip(df_klines, period):
+        if _strategy_bottomUpFlip(df_klines, period):
             code = code.split(".")[-1]
             ret_results.append(code)
     return ret_results
@@ -313,7 +344,7 @@ def analysisA_industry_em(period='d'):
     v_period = '日k' if period == 'd' else '周k'
 
     # 获取需要提取记录的间隔
-    start_date, end_date = get_last_trade_date()
+    start_date, end_date = _get_last_trade_date()
 
     # 获取行业板块的名称和代码
     df = ak.stock_board_industry_name_em()
@@ -321,29 +352,28 @@ def analysisA_industry_em(period='d'):
     dict_data = {row['板块名称']: row['板块代码'] for _, row in df.iterrows()}
     name_list = list(dict_data.keys())
     ret_results = []
-    print(STR_A_STOCK_INDUSTRY_ANALYSIS)
-    for name in tqdm(name_list, desc=STR_ANALYSIS_PROGRESS):
+
+    for name in tqdm(name_list, desc=_STR_A_STOCK_INDUSTRY_ANALYSIS + _STR_ANALYSIS_PROGRESS):
         df = ak.stock_board_industry_hist_em(
             symbol=name,
             start_date=start_date,
             end_date=end_date,
             period=v_period
         )
-        print(df.columns)
         # 数据清洗
-        df = df[list(COL_MAPPING_AK.keys())].rename(columns=COL_MAPPING_AK)
+        df = df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
 
-        if len(df) < RECORD_COUNT:
+        if len(df) < _RECORD_COUNT:
             continue
 
         # 策略分析
-        df_klines = df.tail(RECORD_COUNT)
-        if strategy_bottomUpFlip(df_klines, period):
+        df_klines = df.tail(_RECORD_COUNT)
+        if _strategy_bottomUpFlip(df_klines, period):
             ret_results.append(dict_data[name])
     return ret_results
 
 
-def update_packets():
+def _update_packets():
     """
     更新需要的库（pip、akshare、baostock），并显示进度条
     :return: None
@@ -354,7 +384,7 @@ def update_packets():
         {"name": "akshare", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "akshare"]},
         {"name": "baostock", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "baostock"]}
     ]
-    print(STR_UPDATE_PACKAGES)
+    print(_STR_UPDATE_PACKAGES)
 
     # 使用 tqdm 显示进度
     with tqdm(packages, desc="Updating", unit="package") as pbar:
@@ -372,14 +402,14 @@ def update_packets():
             except Exception as e:
                 tqdm.write(f"[ERROR] Unexpected error with {package['name']}: {e}")
 
-    print(STR_UPDATE_PACKAGES_SUCCESSFULLY)
+    print(_STR_UPDATE_PACKAGES_SUCCESSFULLY)
 
 
 def handle_results(result):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print("分析完成！： 符合策略的 ", len(result), '只:', result)
+    print("分析完成！： 共 ", len(result), '只:', result)
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
@@ -392,10 +422,11 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('301191', '20250529', period='d'))
+        print(back_test('601398', '20230307', period='d'))
     else:
-        update_packets()
+        _update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
+        # handle_results(analysisA(period='d'))
         handle_results(analysisA() + analysisA_industry_em())
         # handle_results(analysisA_industry_em())
     bs.logout()
