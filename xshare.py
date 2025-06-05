@@ -153,7 +153,7 @@ def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date
     return df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
 
 
-def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
+def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d', code='') -> bool:
     """
     用一个字形容 这个策略
 
@@ -185,7 +185,7 @@ def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
             # 获取波段的 高低点
             highs_index, lows_index = _getWavePoints(df_klines, n, 'high', 'low')
 
-            if len(highs_index) < 3 or len(highs_index) < 3:
+            if len(lows_index) < 3 or len(highs_index) < 3:
                 continue
 
             preHighIndex = highs_index[-1]
@@ -256,7 +256,7 @@ def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
         return False
     except Exception as e:
         # 处理其他异常
-        print()
+        print(code)
         print(f"发生未知错误: {e}")
         return False
 
@@ -378,8 +378,8 @@ def analysis_ETF():
             continue
         # 提取需要的N条K线记录
         df_klines = hist_df.tail(_RECORD_COUNT)
-        # 开始分析K线数据
-        if _strategy_bottomUpFlip(df_klines, period='d'):
+
+        if _strategy_bottomUpFlip(df_klines, period='d', code=code):
             code = code[2:]
             ret_results.append(code)
 
@@ -440,6 +440,7 @@ if __name__ == '__main__':
         _update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
         # handle_results(analysisA(period='d'))
-        handle_results(analysisA() + analysis_ETF())
+        # handle_results(analysisA() + analysis_ETF())
+        handle_results(analysis_ETF())
         # handle_results(analysisA() + analysisA_industry())
     bs.logout()
