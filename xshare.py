@@ -153,7 +153,7 @@ def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date
     return df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
 
 
-def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d', code='') -> bool:
+def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
     """
     用一个字形容 这个策略
 
@@ -256,7 +256,6 @@ def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d', code='') -> bool
         return False
     except Exception as e:
         # 处理其他异常
-        print(code)
         print(f"发生未知错误: {e}")
         return False
 
@@ -379,7 +378,7 @@ def analysis_ETF():
         # 提取需要的N条K线记录
         df_klines = hist_df.tail(_RECORD_COUNT)
 
-        if _strategy_bottomUpFlip(df_klines, period='d', code=code):
+        if _strategy_bottomUpFlip(df_klines, period='d'):
             code = code[2:]
             ret_results.append(code)
 
