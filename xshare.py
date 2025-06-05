@@ -34,6 +34,7 @@ _STR_UPDATE_PACKAGES = "[INFO] Updating required packages..."
 _STR_UPDATE_PACKAGES_SUCCESSFULLY = "[INFO] All packages updated successfully!"
 _STR_A_STOCK_INDEX_ANALYSIS = "[INFO] A股 股票 指数 分析中..."
 _STR_A_STOCK_INDUSTRY_ANALYSIS = "[INFO] A股 (东财)行业板块 分析中..."
+_STR_A_STOCK_ETF_ANALYSIS = "[INFO] ETF 分析中..."
 _STR_ANALYSIS_PROGRESS = "Progress"
 _STR_BAOSTOCK_NOT_UPDATE = "baostock 数据可能没更新完成, 请稍后再试!"
 
@@ -107,7 +108,7 @@ def back_test(code, end_date, period='d'):
     :param end_date: 结束时间
     :return: 失败False  成功 类型码
     """
-    start_date, _ = _get_last_trade_date("%Y%m%d",end_date)
+    start_date, _ = _get_last_trade_date("%Y%m%d", end_date)
     if period == 'w':
         start_date = "19700101"
 
@@ -329,7 +330,7 @@ def analysisA(period='d'):
     return ret_results
 
 
-def analysisA_industry_em(period='d'):
+def analysisA_industry(period='d'):
     """
     分析A股的 行业板块 东方财富
     :param period:
@@ -364,6 +365,24 @@ def analysisA_industry_em(period='d'):
         df_klines = df.tail(_RECORD_COUNT)
         if _strategy_bottomUpFlip(df_klines, period):
             ret_results.append(dict_data[name])
+    return ret_results
+
+
+def analysis_ETF():
+    ret_results = []
+    etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
+    codes = etf_df['代码'].to_list()
+    for code in tqdm(codes, desc=_STR_A_STOCK_ETF_ANALYSIS):
+        hist_df = ak.fund_etf_hist_sina(symbol=code)
+        if len(hist_df) < _RECORD_COUNT or hist_df.empty:
+            continue
+        # 提取需要的N条K线记录
+        df_klines = hist_df.tail(_RECORD_COUNT)
+        # 开始分析K线数据
+        if _strategy_bottomUpFlip(df_klines, period='d'):
+            code = code[2:]
+            ret_results.append(code)
+
     return ret_results
 
 
@@ -413,14 +432,14 @@ def handle_results(result):
 
 if __name__ == '__main__':
     lg = bs.login()  # 登录系统
-    test = True
+    test = False
     if test:
         # 回测用
-        print(back_test('601398', '20230310', period='w'))
+        print(back_test('601398', '20230310', period='d'))
     else:
         _update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
         # handle_results(analysisA(period='d'))
-        handle_results(analysisA() + analysisA_industry_em())
-        # handle_results(analysisA_industry_em())
+        handle_results(analysisA() + analysis_ETF())
+        # handle_results(analysisA() + analysisA_industry())
     bs.logout()
