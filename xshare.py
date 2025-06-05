@@ -204,15 +204,12 @@ def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
 
             if today_low < preLowPrice or yesterday_low < preLowPrice:
                 preLow2Price = preLowPrice
-                minPrice = min([today_low, yesterday_low])
-                if minPrice == today_low:
-                    preLowPrice = today_low
-                    preLowIndex = _RECORD_COUNT - 1
-                if minPrice == yesterday_low:
-                    preLowIndex = _RECORD_COUNT - 2
-                    preLowPrice = yesterday_low
+                if today_low <= yesterday_low:  # 使用 <= 可以处理相等的情况
+                    preLowPrice, preLowIndex = today_low, _RECORD_COUNT - 1
+                else:
+                    preLowPrice, preLowIndex = yesterday_low, _RECORD_COUNT - 2
 
-            # 前低索引要大
+            # 高点比低点索引大
             if preHighIndex > preLowIndex:
                 if preLowPrice > preLow2Price:
                     continue
