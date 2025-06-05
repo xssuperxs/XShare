@@ -102,7 +102,7 @@ def _getWavePoints(records, window_size, high_flag, low_flag):
 def back_test(code, end_date, period='d'):
     """
     测试用
-    :param period: 周期
+    :param period: 周期  d 日线  w 周线
     :param code: 代码
     :param end_date: 结束时间
     :return: 失败False  成功 类型码
@@ -216,22 +216,18 @@ def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
             if preHighIndex > preLowIndex:
                 if preLowPrice > preLow2Price:
                     continue
-
-                highs_index_reversed = highs_index[::-1]
+                pre_highs = []
                 is_new_high = False
                 is_OK = True
-                pre_highs = []
-                for idx, item in enumerate(highs_index_reversed):
-                    original_idx = len(highs_index) - 1 - idx
-                    in_klines_index = highs_index[original_idx]
+                for item in reversed(highs_index):
                     if item < preLowIndex:  # 找到前低前面的高点
-                        preHighIndex = in_klines_index
-                        preHighPrice = df_klines.iloc[preHighIndex]['high']
+                        preHighPrice = df_klines.iloc[item]['high']
                         if today_high > preHighPrice > yesterday_high:
                             is_new_high = True
                         break
                     else:
-                        pre_highs.append(in_klines_index)
+                        pre_highs.append(item)
+
                 if not is_new_high:
                     continue
                 for index in pre_highs:
@@ -262,6 +258,7 @@ def _strategy_bottomUpFlip(df_klines: pd.DataFrame, period='d') -> bool:
         return False
     except Exception as e:
         # 处理其他异常
+        print()
         print(f"发生未知错误: {e}")
         return False
 
@@ -402,7 +399,7 @@ def _update_packets():
             except Exception as e:
                 tqdm.write(f"[ERROR] Unexpected error with {package['name']}: {e}")
 
-    print(_STR_UPDATE_PACKAGES_SUCCESSFULLY)
+    # print(_STR_UPDATE_PACKAGES_SUCCESSFULLY)
 
 
 def handle_results(result):
@@ -422,7 +419,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('601398', '20230307', period='d'))
+        print(back_test('601398', '20230310', period='w'))
     else:
         _update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
