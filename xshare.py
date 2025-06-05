@@ -297,7 +297,7 @@ def _query_A_stock_codes_baostock():
     return df_filtered['code'].to_list()
 
 
-def analysisA(period='d'):
+def analyze_A(period='d'):
     """
     分析 A股的 个股  和 指数
     :param period:  d = 日K   w = 周K   m = 月K
@@ -329,7 +329,7 @@ def analysisA(period='d'):
     return ret_results
 
 
-def analysisA_industry(period='d'):
+def analyze_A_industry(period='d'):
     """
     分析A股的 行业板块 东方财富
     :param period:
@@ -367,7 +367,7 @@ def analysisA_industry(period='d'):
     return ret_results
 
 
-def analysis_ETF():
+def analyze_A_ETF():
     ret_results = []
     etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_df['代码'].to_list()
@@ -439,7 +439,7 @@ if __name__ == '__main__':
         _update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
         # handle_results(analysisA(period='d'))
-        # handle_results(analysisA() + analysis_ETF())
-        handle_results(analysis_ETF())
+        handle_results(analyze_A() + analyze_A_ETF())
+        # handle_results(analysis_ETF())
         # handle_results(analysisA() + analysisA_industry())
     bs.logout()
