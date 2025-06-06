@@ -189,22 +189,6 @@ class XShare:
 
 # ================================================ 以上是 XShare的类 ===================================================
 # akshare的映射列
-_COL_MAPPING_AK = {
-    "日期": "date",
-    "开盘": "open",
-    "最高": "high",
-    "最低": "low",
-    "收盘": "close",
-    "成交量": "volume",
-}
-
-# 常量字符串
-_STR_UPDATE_PACKAGES = "[INFO] Updating required packages..."
-_STR_UPDATE_PACKAGES_SUCCESSFULLY = "[INFO] All packages updated successfully!"
-_STR_A_STOCK_INDEX_ANALYSIS = "[INFO] A股 股票 指数 分析中..."
-_STR_A_STOCK_INDUSTRY_ANALYSIS = "[INFO] A股 (东财)行业板块 分析中..."
-_STR_A_STOCK_ETF_ANALYSIS = "[INFO] ETF 分析中..."
-_STR_BAOSTOCK_NOT_UPDATE = "baostock 数据可能没更新完成, 请稍后再试!"
 
 
 def back_test(code, end_date, period='d'):
@@ -250,6 +234,14 @@ def _get_klines_baostock(code, period='d'):
 
 
 def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
+    _COL_MAPPING_AK = {
+        "日期": "date",
+        "开盘": "open",
+        "最高": "high",
+        "最低": "low",
+        "收盘": "close",
+        "成交量": "volume",
+    }
     v_period = 'daily' if period == 'd' else 'weekly'
     df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq", start_date=start_date, end_date=end_date)
     if df.empty:
@@ -303,14 +295,15 @@ def analyze_A(period='d'):
     """
     codes = _query_A_stock_codes_baostock()
     if not codes:
-        print(_STR_BAOSTOCK_NOT_UPDATE)
+        print("baostock 可能没有更新完成 稍后再试！")
         return []
     ret_results = []
 
     # 过滤掉不需要的个股 北证 和 688 开的
     pattern = r"\.9|\.8|\.4|\.688"
     # 使用 tqdm 包装循环，并设置中文描述
-    for code in tqdm(codes, desc=_STR_A_STOCK_INDEX_ANALYSIS):
+    print("[INFO] 开始分析 A股股票和指数 ...")
+    for code in tqdm(codes, desc="Progress :"):
         # 过滤掉暂时不需要的代码
         if re.search(pattern, code):
             continue
@@ -323,48 +316,16 @@ def analyze_A(period='d'):
     return ret_results
 
 
-def analyze_A_industry(period='d'):
-    """
-    分析A股的 行业板块 东方财富
-    :param period:
-    :return:
-    """
-    v_period = '日k' if period == 'd' else '周k'
-
-    # 获取需要提取记录的间隔
-    start_date, end_date = _get_last_trade_date()
-
-    # 获取行业板块的名称和代码
-    df = ak.stock_board_industry_name_em()
-    # 只保留名称和代码
-    dict_data = {row['板块名称']: row['板块代码'] for _, row in df.iterrows()}
-    name_list = list(dict_data.keys())
-    ret_results = []
-
-    for name in tqdm(name_list, desc=_STR_A_STOCK_INDUSTRY_ANALYSIS):
-        df = ak.stock_board_industry_hist_em(
-            symbol=name,
-            start_date=start_date,
-            end_date=end_date,
-            period=v_period
-        )
-        # 数据清洗
-        df = df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
-        if XShare.strategy_bottomUpFlip(df, period):
-            ret_results.append(dict_data[name])
-    return ret_results
-
-
 def analyze_A_ETF():
     ret_results = []
     etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_df['代码'].to_list()
-    for code in tqdm(codes, desc=_STR_A_STOCK_ETF_ANALYSIS):
+    print("[INFO] 开始分析 ETF ...")
+    for code in tqdm(codes, desc="Progress :"):
         hist_df = ak.fund_etf_hist_sina(symbol=code)
         if XShare.strategy_bottomUpFlip(hist_df, period='d'):
             code = code[2:]
             ret_results.append(code)
-
     return ret_results
 
 
@@ -379,8 +340,7 @@ def update_packets():
         {"name": "akshare", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "akshare"]},
         {"name": "baostock", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "baostock"]}
     ]
-    print(_STR_UPDATE_PACKAGES)
-
+    print("[INFO] Updating required packages...")
     # 使用 tqdm 显示进度
     with tqdm(packages, desc="Updating", unit="package") as pbar:
         for package in pbar:
@@ -397,7 +357,7 @@ def update_packets():
             except Exception as e:
                 tqdm.write(f"[ERROR] Unexpected error with {package['name']}: {e}")
 
-    print(_STR_UPDATE_PACKAGES_SUCCESSFULLY)
+    print("[INFO] All packages updated successfully!")
 
 
 def handle_results(result):
@@ -421,8 +381,6 @@ if __name__ == '__main__':
     else:
         update_packets()
         # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
-        # handle_results(analysisA(period='d'))
+        # handle_results(analysisA(period='w'))
         handle_results(analyze_A() + analyze_A_ETF())
-        # handle_results(analysis_ETF())
-        # handle_results(analysisA() + analysisA_industry())
     bs.logout()
