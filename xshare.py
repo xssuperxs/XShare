@@ -1,6 +1,10 @@
+import time
+
 import akshare as ak
 import baostock as bs
 from collections import Counter
+
+import requests
 from ta.trend import MACD
 import pandas as pd
 import subprocess
@@ -188,7 +192,6 @@ class XShare:
 
 
 # ================================================ 以上是 XShare的类 ===================================================
-# akshare的映射列
 
 
 def back_test(code, end_date, period='d'):
@@ -200,8 +203,6 @@ def back_test(code, end_date, period='d'):
     :return: 失败False  成功 类型码
     """
     start_date, _ = _get_last_trade_date("%Y%m%d", end_date)
-    if period == 'w':
-        start_date = "19700101"
 
     df = _get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
 
@@ -210,6 +211,9 @@ def back_test(code, end_date, period='d'):
 
 def _get_klines_baostock(code, period='d'):
     start_date, end_date = _get_last_trade_date("%Y-%m-%d")
+
+    if period == 'w':
+        start_date = "2020-01-01"
     # 获取所有历史K线数据（从上市日期至今）
     rs = bs.query_history_k_data_plus(
         code=code,
@@ -234,6 +238,9 @@ def _get_klines_baostock(code, period='d'):
 
 
 def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
+    if period == 'w':
+        start_date = "19700101"
+
     _COL_MAPPING_AK = {
         "日期": "date",
         "开盘": "open",
@@ -302,8 +309,8 @@ def analyze_A(period='d'):
     # 过滤掉不需要的个股 北证 和 688 开的
     pattern = r"\.9|\.8|\.4|\.688"
     # 使用 tqdm 包装循环，并设置中文描述
-    print("[INFO] 开始分析 A股股票和指数 ...")
-    for code in tqdm(codes, desc="Progress :"):
+    print("[INFO] 分析 A股股票和指数 ...")
+    for code in tqdm(codes, desc="Progress"):
         # 过滤掉暂时不需要的代码
         if re.search(pattern, code):
             continue
@@ -320,12 +327,52 @@ def analyze_A_ETF():
     ret_results = []
     etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_df['代码'].to_list()
-    print("[INFO] 开始分析 ETF ...")
-    for code in tqdm(codes, desc="Progress :"):
+    print("[INFO] 分析 A股  ETF ...")
+    for code in tqdm(codes, desc="Progress"):
         hist_df = ak.fund_etf_hist_sina(symbol=code)
+        if hist_df.empty:
+            continue
+        latest_high = hist_df["high"].iloc[-1]
+        if latest_high > 50:
+            continue
         if XShare.strategy_bottomUpFlip(hist_df, period='d'):
             code = code[2:]
             ret_results.append(code)
+    return ret_results
+
+
+def analyze_BTC():
+    _URL_PAIRS = "https://min-api.cryptocompare.com/data/pair/mapping/exchange?e={}"
+    _URL_HIST_PRICE_DAY = "https://min-api.cryptocompare.com/data/v2/histoday?fsym={}&tsym={}&limit={}&e={}&toTs={}"
+
+    response = requests.get(_URL_PAIRS.format('Binance')).json()
+    if response:
+        all_pairs = response["Data"]
+    else:
+        return None
+
+    coins = [
+        pair['fsym']  # 只保留基础货币，如 'BTC', 'ETH'
+        for pair in all_pairs
+        if pair['tsym'] == 'USDT'  # 只选择 USDT 交易对
+    ]
+    ret_results = []
+    print("[INFO] 分析 加密货币（BTC 相关） ...")
+    for coin in tqdm(coins, desc="Progress"):
+        # 100 是要获取的条数
+        request_url_historical_day = _URL_HIST_PRICE_DAY.format(coin, 'USDT', 100, 'Binance', int(time.time()))
+
+        try:
+            response = requests.get(request_url_historical_day).json()
+            if not response:
+                continue
+            json_data = response["Data"]["Data"]
+            df = pd.DataFrame(json_data)
+            if XShare.strategy_bottomUpFlip(df):
+                ret_results.append(coin + '/USDT')
+        except KeyError:
+            pass
+
     return ret_results
 
 
@@ -377,10 +424,13 @@ if __name__ == '__main__':
     test = False
     if test:
         # 回测用
-        print(back_test('601398', '20230310', period='d'))
+        print(back_test('002996', '20250606', period='w'))
     else:
         update_packets()
-        # 同时分析 A股股票 A股指数 和 A股行业板块(东方财富的行业板块)
-        # handle_results(analysisA(period='w'))
-        handle_results(analyze_A() + analyze_A_ETF())
+        # 分析A股股票周线
+        # handle_results(analyze_A(period='w'))
+        # 分析A股股票日线和ETF
+        # handle_results(analyze_A() + analyze_A_ETF())
+        # 分析加密货币 币安 USDT 交易对
+        print(analyze_BTC())
     bs.logout()
