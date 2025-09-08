@@ -18,6 +18,7 @@ from dateutil.relativedelta import relativedelta
 class XShare:
     # 时间窗口
     __MIN_WINDOW_SIZE = 3
+    __MAX_WINDOW_SIZE = 8
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
@@ -104,69 +105,74 @@ class XShare:
             if yesterday_high > today_high:
                 return False
 
-            # 获取波段的 高低点
-            highs_index, lows_index = XShare.__getWavePoints(df_klines, XShare.__MIN_WINDOW_SIZE, 'high', 'low')
+            # 获取需要的时间窗口
+            nSubWindow = [i for i in range(XShare.__MIN_WINDOW_SIZE, XShare.__MAX_WINDOW_SIZE)]
 
-            if len(lows_index) < 3 or len(highs_index) < 3:
-                return False
+            for n in nSubWindow:
+                # 获取波段的 高低点
+                highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
 
-            isOK = False
-            highIndex = -1
-            # 波段区域的最低价
-            lowest_price = 10000
-            # 前面波段的最高价
-            Highest_price = -1
-            preLowIndex = -1
-            lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
-            if yesterday_high > lastHighPrice:
-                return False
+                if len(lows_index) < 3 or len(highs_index) < 3:
+                    continue
 
-            for hIndex in reversed(highs_index):
-                tmpHighPrice = df_klines.iloc[hIndex]['high']
-                # if Highest_price == -1:
-                #     Highest_price = tmpHighPrice
-                # else:
-                #     if Highest_price < tmpHighPrice:
-                #         break
-                #     Highest_price = max(Highest_price, tmpHighPrice)
-                if today_high >= tmpHighPrice:
-                    isOK = True
-                    highIndex = hIndex
-                else:
-                    break
+                isOK = False
+                highIndex = -1
+                # 波段区域的最低价
+                lowest_price = 10000
+                # 前面波段的最高价
+                currentLowIndex = -1
+                preLowIndex = -1
+                lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
+                if yesterday_high > lastHighPrice:
+                    continue
 
-            # 有一个条件不成立 返回 False
-            if not isOK or highs_index == -1:
-                return False
+                for hIndex in reversed(highs_index):
+                    tmpHighPrice = df_klines.iloc[hIndex]['high']
+                    if today_high >= tmpHighPrice:
+                        isOK = True
+                        highIndex = hIndex
+                    else:
+                        break
 
-            # 取出 highs_index 前一个波段的最低点
-            for lIndex in reversed(lows_index):
-                if lIndex > highIndex:
-                    tmpLowPrice = df_klines.iloc[lIndex]['low']
-                    lowest_price = min(lowest_price, tmpLowPrice)
-                else:
-                    preLowIndex = lIndex
-                    break
+                # 有一个条件不成立 返回 False
+                if not isOK or highs_index == -1:
+                    continue
 
-            # 再取出 当前波段的最低点
-            preLowPrice = df_klines.iloc[preLowIndex]['low']
+                # 取出 highs_index 前一个波段的最低点
+                for lIndex in reversed(lows_index):
+                    if lIndex > highIndex:
+                        tmpLowPrice = df_klines.iloc[lIndex]['low']
+                        if currentLowIndex == -1:
+                            currentLowIndex = lIndex
+                            lowest_price = tmpLowPrice
+                        else:
+                            if tmpLowPrice < lowest_price:
+                                currentLowIndex = lIndex
+                    else:
+                        preLowIndex = lIndex  # 这里是前低点
+                        break
 
-            if lowest_price > preLowPrice:
-                return False
-            return True
-            # if period == 'w':
-            #     return True
-            # return True
-            # macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-            # pre_low_dea = macd.macd_signal().iloc[preLowIndex]
-            # if pre_low_dea > 0:
-            #     continue
+                # 再取出 当前波段的最低点
+                preLowPrice = df_klines.iloc[preLowIndex]['low']
+                curLowPrice = df_klines.iloc[currentLowIndex]['low']
+                if curLowPrice > preLowPrice:
+                    continue
+                if period == 'w':
+                    return True
+                # macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+                # pre_low_dea = macd.macd_signal().iloc[preLowIndex]
+                # if pre_low_dea > 0:
+                #     continue
 
-            # 获取最低点向前的N条记录
-            # subset = df_klines.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-            # n_day_low_price = subset['low'].min()
-            # if preLowPrice <= n_day_low_price:
-            #     return True
+                if currentLowIndex < XShare.__NEW_LOW_DAYS:
+                    continue
+                # 获取最低点向前的N条记录
+                subset = df_klines.iloc[currentLowIndex - XShare.__NEW_LOW_DAYS: currentLowIndex]
+                n_day_low_price = subset['low'].min()
+                if curLowPrice <= n_day_low_price:
+                    return True
+
+            return False
         except Exception as e:
             # 处理其他异常
             print(f"发生未知错误: {e}")
@@ -418,7 +424,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('605136', '20240712', period='d'))
+        print(back_test('300518', '20250421', period='d'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
