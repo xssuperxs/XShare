@@ -14,19 +14,40 @@ from binance import Client
 
 import cryptocompare
 
-import cryptocompare
+# 获取ETF实时行情
+etf_info = ak.fund_etf_category_sina(symbol="ETF基金")
+print(etf_info)
 
-data = cryptocompare.get_historical_price_day('BTC', 'USDT', limit=100)
-df = pd.DataFrame(data)
-df = df.drop(columns=['conversionType', 'conversionSymbol', 'volumeto', 'volumefrom'])
-df['date'] = pd.to_datetime(df['time'], unit='s')
-df = df.drop(columns=['time'])
-print(df)
+# 登录 Baostock 系统
+lg = bs.login()
 
-# df.set_index('date', inplace=True)
-print(type(data))
-print(data)
-print(data)
+# 获取所有证券（股票、ETF、指数等）的基本信息
+# rs = bs.query_all_stock()
+rs = bs.query_stock_basic()
+data_list = []
+while (rs.error_code == '0') & rs.next():
+    data_list.append(rs.get_row_data())
+
+
+for doc in data_list:
+    print(doc)
+
+# 转换为 DataFrame
+columns = ["code", "trade_code", "sec_name", "ticker", "fund_name", "publish_date", "list_date", "issue_type"]
+all_stocks = pd.DataFrame(data_list, columns=columns)
+
+# 筛选 ETF（上海 ETF 代码通常以 51 开头，深圳以 15 开头）
+etf_df = all_stocks[
+    all_stocks["code"].str.startswith("sh.51") |
+    all_stocks["code"].str.startswith("sz.15")
+]
+
+# 登出
+bs.logout()
+
+# 查看前5条 ETF 数据
+print(etf_df.head())
+print(etf_df.head())
 
 #     return usdt_pairs
 # exchange = 'Binance'  # 币安交易所名称

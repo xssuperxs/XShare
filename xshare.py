@@ -18,11 +18,10 @@ from dateutil.relativedelta import relativedelta
 class XShare:
     # 时间窗口
     __MIN_WINDOW_SIZE = 3
-    __MAX_WINDOW_SIZE = 7
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
-    __NEW_LOW_DAYS = 21
+    __NEW_LOW_DAYS = 18
 
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
@@ -101,90 +100,73 @@ class XShare:
             yesterday_doc = df_klines.iloc[-2]
 
             today_high = today_doc['high']
-            today_low = today_doc['low']
             yesterday_high = yesterday_doc['high']
-            yesterday_low = yesterday_doc['low']
-
             if yesterday_high > today_high:
                 return False
 
-            # 获取需要的时间窗口
-            nSubWindow = [i for i in range(XShare.__MIN_WINDOW_SIZE, XShare.__MAX_WINDOW_SIZE)]
+            # 获取波段的 高低点
+            highs_index, lows_index = XShare.__getWavePoints(df_klines, XShare.__MIN_WINDOW_SIZE, 'high', 'low')
 
-            for n in nSubWindow:
+            if len(lows_index) < 3 or len(highs_index) < 3:
+                return False
 
-                # 获取波段的 高低点
-                highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
+            isOK = False
+            highIndex = -1
+            # 波段区域的最低价
+            lowest_price = 10000
+            # 前面波段的最高价
+            Highest_price = -1
+            preLowIndex = -1
+            lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
+            if yesterday_high > lastHighPrice:
+                return False
 
-                if len(lows_index) < 3 or len(highs_index) < 3:
-                    continue
+            for hIndex in reversed(highs_index):
+                tmpHighPrice = df_klines.iloc[hIndex]['high']
+                # if Highest_price == -1:
+                #     Highest_price = tmpHighPrice
+                # else:
+                #     if Highest_price < tmpHighPrice:
+                #         break
+                #     Highest_price = max(Highest_price, tmpHighPrice)
+                if today_high >= tmpHighPrice:
+                    isOK = True
+                    highIndex = hIndex
+                else:
+                    break
 
-                preHighIndex = highs_index[-1]
-                preLowIndex = lows_index[-1]
-                preLow2Index = lows_index[-2]
+            # 有一个条件不成立 返回 False
+            if not isOK or highs_index == -1:
+                return False
 
-                preHighPrice = df_klines.iloc[preHighIndex]['high']
-                preLowPrice = df_klines.iloc[preLowIndex]['low']
-                preLow2Price = df_klines.iloc[preLow2Index]['low']
+            # 取出 highs_index 前一个波段的最低点
+            for lIndex in reversed(lows_index):
+                if lIndex > highIndex:
+                    tmpLowPrice = df_klines.iloc[lIndex]['low']
+                    lowest_price = min(lowest_price, tmpLowPrice)
+                else:
+                    preLowIndex = lIndex
+                    break
 
-                # 当天高点要过前高
-                if today_high <= preHighPrice:
-                    continue
-                # 昨天高点不能过前高
-                if yesterday_high >= preHighPrice:
-                    continue
+            # 再取出 当前波段的最低点
+            preLowPrice = df_klines.iloc[preLowIndex]['low']
 
-                if today_low < preLowPrice or yesterday_low < preLowPrice:
-                    preLow2Price = preLowPrice
-                    if today_low <= yesterday_low:  # 使用 <= 可以处理相等的情况
-                        preLowPrice, preLowIndex = today_low, XShare.__RECORD_COUNT - 1
-                    else:
-                        preLowPrice, preLowIndex = yesterday_low, XShare.__RECORD_COUNT - 2
+            if lowest_price > preLowPrice:
+                return False
+            return True
+            # if period == 'w':
+            #     return True
+            # return True
+            # macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+            # pre_low_dea = macd.macd_signal().iloc[preLowIndex]
+            # if pre_low_dea > 0:
+            #     continue
 
-                # 高点比低点索引大
-                if preHighIndex > preLowIndex:
-                    if preLowPrice > preLow2Price:
-                        continue
-                    pre_highs = []
-                    is_new_high = False
-                    is_OK = True
-                    for item in reversed(highs_index):
-                        if item < preLowIndex:  # 找到前低前面的高点
-                            preHighPrice = df_klines.iloc[item]['high']
-                            if today_high > preHighPrice > yesterday_high:
-                                is_new_high = True
-                            break
-                        else:
-                            pre_highs.append(item)
-
-                    if not is_new_high:
-                        continue
-                    for index in pre_highs:
-                        if df_klines.iloc[index]['high'] > preHighPrice:
-                            is_OK = False
-                            break
-                    if not is_OK:
-                        continue
-
-                # 判断是不是破底翻
-                if preLowPrice > preLow2Price:
-                    continue
-
-                # 如果是分析周线 这里直接返回True
-                if period == 'w':
-                    return True
-
-                macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-                pre_low_dea = macd.macd_signal().iloc[preLowIndex]
-                if pre_low_dea > 0:
-                    continue
-
-                # 获取最低点向前的N条记录
-                subset = df_klines.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
-                n_day_low_price = subset['low'].min()
-                if preLowPrice <= n_day_low_price:
-                    return True
-            return False
+            # 获取最低点向前的N条记录
+            # subset = df_klines.iloc[preLowIndex - XShare.__NEW_LOW_DAYS: preLowIndex]
+            # n_day_low_price = subset['low'].min()
+            # if preLowPrice <= n_day_low_price:
+            #     return True
         except Exception as e:
             # 处理其他异常
             print(f"发生未知错误: {e}")
@@ -305,26 +287,38 @@ def analyze_A(period='d'):
         print("baostock 可能没有更新完成 稍后再试！")
         return []
     ret_results = []
+    str1 = '日K'
+    if period == 'w':
+        str1 = '周K'
 
     # 过滤掉不需要的个股 北证 和 688 开的
     pattern = r"\.9|\.8|\.4|\.688"
     # 使用 tqdm 包装循环，并设置中文描述
-    print("[INFO] 分析 A股股票和指数 ...")
+    print("[INFO] 分析 A股股票和指数 ..." + str1)
+    nError = 0
     for code in tqdm(codes, desc="Progress"):
         # 过滤掉暂时不需要的代码
         if re.search(pattern, code):
             continue
-        # 提取历史K线信息
-        df = _get_klines_baostock(code, period)
-        # 开始分析K线数据
-        if XShare.strategy_bottomUpFlip(df, period):
-            code = code.split(".")[-1]
-            ret_results.append(code)
+        try:
+            # 提取历史K线信息
+            df = _get_klines_baostock(code, period)
+            # 开始分析K线数据
+            if XShare.strategy_bottomUpFlip(df, period):
+                code = code.split(".")[-1]
+                ret_results.append(code)
+        except Exception as e:
+            nError += 1
+            if nError == 1:
+                print(f"发生未知错误: {e}")
+            continue
+    print("analyze_A error count:" + str(nError))
     return ret_results
 
 
 def analyze_A_ETF():
     ret_results = []
+    # etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_df['代码'].to_list()
     print("[INFO] 分析 A股  ETF ...")
@@ -421,16 +415,18 @@ def handle_results(result):
 
 if __name__ == '__main__':
     lg = bs.login()  # 登录系统
-    test = False
+    test = True
     if test:
         # 回测用
-        print(back_test('002996', '20250606', period='w'))
+        print(back_test('605136', '20240712', period='d'))
+        # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
-        # 分析A股股票周线
-        # handle_results(analyze_A(period='w'))
-        # 分析A股股票日线和ETF
-        # handle_results(analyze_A() + analyze_A_ETF())
+        is_daily = True  # 日线 周线切换  true为日线
+        if is_daily:
+            handle_results(analyze_A() + analyze_A_ETF())
+        else:
+            handle_results(analyze_A(period='w'))
         # 分析加密货币 币安 USDT 交易对
-        print(analyze_BTC())
+        # print(analyze_BTC())
     bs.logout()
