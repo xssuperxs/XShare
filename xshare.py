@@ -96,6 +96,8 @@ class XShare:
         if len(klines) < XShare.__RECORD_COUNT or klines.empty:
             return False
         df_klines = klines.tail(XShare.__RECORD_COUNT)
+        if period == 'w':
+            XShare.__MIN_WINDOW_SIZE = 2
         try:
             today_doc = df_klines.iloc[-1]
             yesterday_doc = df_klines.iloc[-2]
@@ -124,24 +126,25 @@ class XShare:
                 # 确定前低  和 最低
                 lowPoints = list(reversed(lows_index))
                 curLowIndex = lows_index[-1]
-                nextLowIndex = -1
+                preLowIndex = -1
+                highIndex = -1
                 for current, next_item in zip(lowPoints, lowPoints[1:]):
                     curLow = df_klines.iloc[current]['low']
                     nextLow = df_klines.iloc[next_item]['low']
                     if curLow < nextLow:
-                        nextLowIndex = next_item
+                        preLowIndex = next_item
                         break
                     else:
                         curLowIndex = next_item
 
                 # 判断是否获取到两个低点的索引
-                if curLowIndex == -1 or nextLowIndex == -1:
+                if curLowIndex == -1 or preLowIndex == -1:
                     continue
 
                 # 取出波段的高点要在两个低点中间
-                highIndex = -1
+
                 for nIndex in reversed(highs_index):
-                    if nextLowIndex < nIndex < curLowIndex:
+                    if preLowIndex < nIndex < curLowIndex:
                         highIndex = nIndex
                         break
                 if highIndex == -1:
@@ -418,7 +421,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('601398', '20220715', period='w'))
+        print(back_test('605136', '20250425', period='w'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
