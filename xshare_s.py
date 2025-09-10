@@ -22,7 +22,7 @@ class XShare:
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
-    __NEW_LOW_DAYS = 18
+    __NEW_LOW_DAYS = 21
 
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
@@ -92,6 +92,10 @@ class XShare:
         :param period:  周期  d 日线  w 周线
         :return:  bool
         """
+        if period == 'd':
+            XShare.__RECORD_COUNT = 150
+            XShare.__MIN_WINDOW_SIZE = 3
+
         # K线小于100条记录 返回FALSE
         if len(klines) < XShare.__RECORD_COUNT or klines.empty:
             return False
@@ -115,61 +119,45 @@ class XShare:
                 if len(lows_index) < 3 or len(highs_index) < 3:
                     continue
 
-                isOK = False
-                highIndex = -1
-                # 波段区域的最低价
-                lowest_price = 10000
-                # 前面波段的最高价
-                currentLowIndex = -1
-                preLowIndex = -1
-                lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
-                if yesterday_high > lastHighPrice:
-                    continue
+                highIndex = highs_index[-1]
 
-                for hIndex in reversed(highs_index):
-                    tmpHighPrice = df_klines.iloc[hIndex]['high']
-                    if today_high >= tmpHighPrice:
-                        isOK = True
-                        highIndex = hIndex
-                    else:
+                highPrice = df_klines.iloc[highIndex]['high']
+
+                subHighToToday = df_klines.iloc[highIndex:]
+                lowPrice = subHighToToday['low'].min()
+                preLowPrice = 0
+                # 获取 波段高点前面的低点
+                for nLowIndex in reversed(lows_index):
+                    if nLowIndex < highIndex:
+                        preLowIndex = nLowIndex
+                        preLowPrice = df_klines.iloc[preLowIndex]['low']
                         break
 
-                # 有一个条件不成立 返回 False
-                if not isOK or highs_index == -1:
+                if today_high < highPrice:
+                    return False
+                if yesterday_high > highPrice:
+                    return False
+
+                if lowPrice > preLowPrice != 0:
                     continue
 
-                # 取出 highs_index 前一个波段的最低点
-                for lIndex in reversed(lows_index):
-                    if lIndex > highIndex:
-                        tmpLowPrice = df_klines.iloc[lIndex]['low']
-                        if currentLowIndex == -1:
-                            currentLowIndex = lIndex
-                            lowest_price = tmpLowPrice
-                        else:
-                            if tmpLowPrice < lowest_price:
-                                currentLowIndex = lIndex
-                    else:
-                        preLowIndex = lIndex  # 这里是前低点
-                        break
-
-                # 再取出 当前波段的最低点
-                preLowPrice = df_klines.iloc[preLowIndex]['low']
-                curLowPrice = df_klines.iloc[currentLowIndex]['low']
-                if curLowPrice > preLowPrice:
-                    continue
                 if period == 'w':
                     return True
                 # macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
                 # pre_low_dea = macd.macd_signal().iloc[preLowIndex]
                 # if pre_low_dea > 0:
                 #     continue
-
-                if currentLowIndex < XShare.__NEW_LOW_DAYS:
-                    continue
                 # 获取最低点向前的N条记录
-                subset = df_klines.iloc[currentLowIndex - XShare.__NEW_LOW_DAYS: currentLowIndex]
+                lowIndex = -1
+
+                for i, item in subHighToToday:
+                    if lowPrice == item.iloc[i]['low']:
+                        lowIndex = XShare.__RECORD_COUNT - i
+                        break
+
+                subset = df_klines.iloc[lowIndex - XShare.__NEW_LOW_DAYS: lowIndex]
                 n_day_low_price = subset['low'].min()
-                if curLowPrice <= n_day_low_price:
+                if lowPrice <= n_day_low_price:
                     return True
 
             return False
@@ -424,7 +412,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('300518', '20250421', period='d'))
+        print(back_test('601398', '20230310', period='w'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()

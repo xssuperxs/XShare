@@ -1,4 +1,4 @@
-from xshare import XShare
+from xshare_s import XShare
 
 XShare.strategy_bottomUpFlip([])
 
