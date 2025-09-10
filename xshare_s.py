@@ -18,7 +18,7 @@ from dateutil.relativedelta import relativedelta
 class XShare:
     # 时间窗口
     __MIN_WINDOW_SIZE = 3
-    __MAX_WINDOW_SIZE = 8
+    __MAX_WINDOW_SIZE = 4
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
@@ -92,10 +92,6 @@ class XShare:
         :param period:  周期  d 日线  w 周线
         :return:  bool
         """
-        if period == 'd':
-            XShare.__RECORD_COUNT = 150
-            XShare.__MIN_WINDOW_SIZE = 3
-
         # K线小于100条记录 返回FALSE
         if len(klines) < XShare.__RECORD_COUNT or klines.empty:
             return False
@@ -105,7 +101,9 @@ class XShare:
             yesterday_doc = df_klines.iloc[-2]
 
             today_high = today_doc['high']
+            today_low = today_doc['low']
             yesterday_high = yesterday_doc['high']
+            yesterday_low = yesterday_doc['low']
             if yesterday_high > today_high:
                 return False
 
@@ -118,45 +116,52 @@ class XShare:
 
                 if len(lows_index) < 3 or len(highs_index) < 3:
                     continue
-
-                highIndex = highs_index[-1]
-
-                highPrice = df_klines.iloc[highIndex]['high']
-
-                subHighToToday = df_klines.iloc[highIndex:]
-                lowPrice = subHighToToday['low'].min()
-                preLowPrice = 0
-                # 获取 波段高点前面的低点
-                for nLowIndex in reversed(lows_index):
-                    if nLowIndex < highIndex:
-                        preLowIndex = nLowIndex
-                        preLowPrice = df_klines.iloc[preLowIndex]['low']
+                # 先确定最低点
+                lowPrice = df_klines.iloc[lows_index[-1]]['low']
+                tmpLow = min(today_low, yesterday_low)
+                if tmpLow < lowPrice:
+                    lows_index.append(XShare.__RECORD_COUNT - 1)
+                # 确定前低  和 最低
+                lowPoints = list(reversed(lows_index))
+                curLowIndex = lows_index[-1]
+                nextLowIndex = -1
+                for current, next_item in zip(lowPoints, lowPoints[1:]):
+                    curLow = df_klines.iloc[current]['low']
+                    nextLow = df_klines.iloc[next_item]['low']
+                    if curLow < nextLow:
+                        nextLowIndex = next_item
                         break
+                    else:
+                        curLowIndex = next_item
 
-                if today_high < highPrice:
-                    return False
-                if yesterday_high > highPrice:
-                    return False
-
-                if lowPrice > preLowPrice != 0:
+                # 判断是否获取到两个低点的索引
+                if curLowIndex == -1 or nextLowIndex == -1:
                     continue
 
+                # 取出波段的高点要在两个低点中间
+                highIndex = -1
+                for nIndex in reversed(highs_index):
+                    if nextLowIndex < nIndex < curLowIndex:
+                        highIndex = nIndex
+                        break
+
+                highPrice = df_klines.iloc[highIndex]['high']
+                if today_high < highPrice:
+                    continue
+                if yesterday_high > highPrice:
+                    continue
                 if period == 'w':
                     return True
+
                 # macd = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
                 # pre_low_dea = macd.macd_signal().iloc[preLowIndex]
                 # if pre_low_dea > 0:
                 #     continue
                 # 获取最低点向前的N条记录
-                lowIndex = -1
 
-                for i, item in subHighToToday:
-                    if lowPrice == item.iloc[i]['low']:
-                        lowIndex = XShare.__RECORD_COUNT - i
-                        break
-
-                subset = df_klines.iloc[lowIndex - XShare.__NEW_LOW_DAYS: lowIndex]
+                subset = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = subset['low'].min()
+                lowPrice = df_klines.iloc[curLowIndex]['low']
                 if lowPrice <= n_day_low_price:
                     return True
 
