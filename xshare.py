@@ -131,6 +131,10 @@ class XShare:
                 for current, next_item in zip(lowPoints, lowPoints[1:]):
                     curLow = df_klines.iloc[current]['low']
                     nextLow = df_klines.iloc[next_item]['low']
+
+                    # # 判断下 差要大于1%
+                    # diff = abs(curLow - nextLow)  # 计算绝对差值
+                    # one_percent = curLow * 0.01  # 计算curLow的1%
                     if curLow < nextLow:
                         preLowIndex = next_item
                         break
