@@ -144,7 +144,8 @@ class XShare:
                     if nextLowIndex < nIndex < curLowIndex:
                         highIndex = nIndex
                         break
-
+                if highIndex == -1:
+                    continue
                 highPrice = df_klines.iloc[highIndex]['high']
                 if today_high < highPrice:
                     continue
@@ -417,7 +418,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('601398', '20230310', period='w'))
+        print(back_test('601398', '20220715', period='w'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
