@@ -99,14 +99,14 @@ class XShare:
         if period == 'w':
             XShare.__MIN_WINDOW_SIZE = 2
         try:
-            today_doc = df_klines.iloc[-1]
-            yesterday_doc = df_klines.iloc[-2]
+            today_kline = df_klines.iloc[-1]
+            pre_kline = df_klines.iloc[-2]
 
-            today_high = today_doc['high']
-            today_low = today_doc['low']
-            yesterday_high = yesterday_doc['high']
-            yesterday_low = yesterday_doc['low']
-            if yesterday_high > today_high:
+            today_high = today_kline['high']
+            today_low = today_kline['low']
+            pre_high = pre_kline['high']
+            pre_low = pre_kline['low']
+            if pre_high > today_high:
                 return False
 
             # 获取需要的时间窗口
@@ -118,9 +118,14 @@ class XShare:
 
                 if len(lows_index) < 3 or len(highs_index) < 3:
                     continue
+                # 先判断 今天的高点 是否大于第一个波段
+                lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
+                if today_high < lastHighPrice:
+                    continue
+
                 # 先确定最低点
                 lowPrice = df_klines.iloc[lows_index[-1]]['low']
-                tmpLow = min(today_low, yesterday_low)
+                tmpLow = min(today_low, pre_low)
                 if tmpLow < lowPrice:
                     lows_index.append(XShare.__RECORD_COUNT - 1)
                 # 确定前低  和 最低
@@ -131,10 +136,6 @@ class XShare:
                 for current, next_item in zip(lowPoints, lowPoints[1:]):
                     curLow = df_klines.iloc[current]['low']
                     nextLow = df_klines.iloc[next_item]['low']
-
-                    # # 判断下 差要大于1%
-                    # diff = abs(curLow - nextLow)  # 计算绝对差值
-                    # one_percent = curLow * 0.01  # 计算curLow的1%
                     if curLow < nextLow:
                         preLowIndex = next_item
                         break
@@ -156,8 +157,12 @@ class XShare:
                 highPrice = df_klines.iloc[highIndex]['high']
                 if today_high < highPrice:
                     continue
-                if yesterday_high > highPrice:
+                # 判断前面波段的高点到昨天是最高点
+                sub_check_high = df_klines.iloc[highIndex: XShare.__RECORD_COUNT - 1]
+                sub_high_price = sub_check_high['high'].max()
+                if sub_high_price != highPrice:
                     continue
+
                 if period == 'w':
                     return True
 
@@ -167,8 +172,8 @@ class XShare:
                 #     continue
                 # 获取最低点向前的N条记录
 
-                subset = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
-                n_day_low_price = subset['low'].min()
+                sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
+                n_day_low_price = sub_check_low['low'].min()
                 lowPrice = df_klines.iloc[curLowIndex]['low']
                 if lowPrice <= n_day_low_price:
                     return True
@@ -425,7 +430,8 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('605136', '20250425', period='w'))
+        print(back_test('600137', '20250910', period='d'))
+        # 美凯龙
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
