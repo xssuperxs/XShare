@@ -427,7 +427,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('001201', '20250613', period='w'))
+        print(back_test('603363', '20250826', period='d'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
