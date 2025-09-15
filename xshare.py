@@ -136,10 +136,8 @@ class XShare:
                 curLow = df_klines.iloc[current]['low']
                 nextLow = df_klines.iloc[next_item]['low']
                 if curLow < nextLow:
-                    curLowIndex = next_item
+                    curLowIndex = current
                     break
-
-            # 判断是否获取到两个低点的索引
             if curLowIndex == -1:
                 return False
 
@@ -439,7 +437,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('688028', '20250701', period='d'))
+        print(back_test('001201', '20250613', period='w'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
