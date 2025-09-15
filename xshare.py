@@ -128,32 +128,44 @@ class XShare:
                 lows_index.append(XShare.__RECORD_COUNT - 1)
             # 确定前低  和 最低
             lowPoints = list(reversed(lows_index))
-            curLowIndex = lows_index[-1]
+            curLowIndex = -1
             preLowIndex = -1
             highIndex = -1
+            # 确定波段的最低点
             for current, next_item in zip(lowPoints, lowPoints[1:]):
                 curLow = df_klines.iloc[current]['low']
                 nextLow = df_klines.iloc[next_item]['low']
                 if curLow < nextLow:
-                    preLowIndex = next_item
-                    break
-                else:
                     curLowIndex = next_item
+                    break
 
             # 判断是否获取到两个低点的索引
-            if curLowIndex == -1 or preLowIndex == -1:
+            if curLowIndex == -1:
                 return False
 
-            # 取出波段的高点要在两个低点中间
+            # 确定波段的最高点
             for nIndex in reversed(highs_index):
-                if preLowIndex < nIndex <= curLowIndex:
+                if nIndex <= curLowIndex:
                     highIndex = nIndex
                     break
             if highIndex == -1:
                 return False
+            # 再确定高点波段前面的低点
+            for nIndex in reversed(lows_index):
+                if nIndex <= highIndex:
+                    preLowIndex = nIndex
+                    break
+
+            curLowPrice = df_klines.iloc[curLowIndex]['low']
+            preLowPrice = df_klines.iloc[preLowIndex]['low']
+
+            if curLowPrice > preLowPrice:
+                return False
+
             highPrice = df_klines.iloc[highIndex]['high']
             if today_high < highPrice:
                 return False
+
             # 判断前面波段的高点到昨天是最高点
             sub_check_high = df_klines.iloc[highIndex: XShare.__RECORD_COUNT - 1]
             sub_high_price = sub_check_high['high'].max()
@@ -427,7 +439,7 @@ if __name__ == '__main__':
     test = True
     if test:
         # 回测用
-        print(back_test('603363', '20250826', period='d'))
+        print(back_test('688028', '20250701', period='d'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
