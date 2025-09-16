@@ -148,6 +148,7 @@ class XShare:
                     break
             if highIndex == -1:
                 return False
+
             # 再确定高点波段前面的低点
             for nIndex in reversed(lows_index):
                 if nIndex <= highIndex:
@@ -156,11 +157,12 @@ class XShare:
 
             curLowPrice = df_klines.iloc[curLowIndex]['low']
             preLowPrice = df_klines.iloc[preLowIndex]['low']
-
+            # 判断破底翻
             if curLowPrice > preLowPrice:
                 return False
 
             highPrice = df_klines.iloc[highIndex]['high']
+            # 判断过前波段高点
             if today_high < highPrice:
                 return False
 
@@ -169,17 +171,17 @@ class XShare:
             sub_high_price = sub_check_high['high'].max()
             if sub_high_price != highPrice:
                 return False
-
-            macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-            # last_DIF = macd_info.macd().iloc[-1]
-            # last_DEA = macd_info.macd_signal().iloc[-1]
-            last_MACD = macd_info.macd_diff().iloc[-1]
-            if last_MACD < 0:
-                return False
-            # 获取最低点向前的N条记录
             if period == 'w':
                 return True
 
+            # macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+            # # last_DIF = macd_info.macd().iloc[-1]
+            # # last_DEA = macd_info.macd_signal().iloc[-1]
+            # last_MACD = macd_info.macd_diff().iloc[-1]
+            # if last_MACD < 0:
+            #     return False
+
+            # 获取最低点向前的N条记录
             sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
             lowPrice = df_klines.iloc[curLowIndex]['low']
@@ -434,14 +436,14 @@ def handle_results(result):
 
 if __name__ == '__main__':
     lg = bs.login()  # 登录系统
-    test = True
+    test = False
     if test:
         # 回测用
-        print(back_test('001201', '20250613', period='w'))
+        print(back_test('603717', '20250704', period='w'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
-        is_daily = False  # 日线 周线切换  true为日线
+        is_daily = True  # 日线 周线切换  true为日线
         if is_daily:
             handle_results(analyze_A() + analyze_A_ETF())
         else:
