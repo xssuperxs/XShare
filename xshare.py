@@ -84,9 +84,139 @@ class XShare:
         return wave_highs_index, wave_lows_index
 
     @staticmethod
+    def strategy_newHigh(klines: pd.DataFrame, period='d') -> bool:
+        """
+        缩量突破
+        :param klines:
+        :param period:
+        :return:
+        """
+        pass
+
+    @staticmethod
+    def kline_rally_fade(kline: pd.DataFrame, min_shadow_ratio=0.4) -> bool:
+        """
+        判断K线是否是冲高回落
+        :param kline:
+        :param min_shadow_ratio: 上阴线的占比 最少
+        :return:
+        """
+        low = kline['low']
+        high = kline['high']
+        close = kline['close']
+        open = kline['open']
+
+        # 计算实体和影线
+        entity_high = max(open, close)
+        # entity_low = min(open, close)
+
+        upper_shadow = high - entity_high  # 获取上限线的长度
+        # lower_shadow = entity_low - low  # 获取下阴线的长度
+        total_range = high - low  # K线最高 到 最低的范围
+
+        # 避免除零错误
+        if total_range == 0:
+            return False
+
+        # 计算各种比例
+        upper_shadow_ratio = upper_shadow / total_range  # 上阴线的比例
+        close_position = (close - low) / total_range  # 收盘价在K线中的位置
+
+        # 冲高回落判断条件
+        conditions = [
+            upper_shadow_ratio >= min_shadow_ratio,  # 上影线足够长
+            close_position <= 0.5,  # 收盘价在下半部分
+            # high > open * 1.01,  # 最高点明显高于开盘价(至少1%)
+            # close < high * 0.98  # 收盘价明显低于最高点(至少回落2%)
+        ]
+        return all(conditions)
+
+    @staticmethod
+    def kline_solid_bearish_candle(kline: pd.DataFrame, min_decline=0.02, entity_ratio=0.8) -> bool:
+        """
+        检测 K线是否为实体阴线
+        :param kline:
+        :param min_decline:  K线 跌幅   0.02 = 2%
+        :param entity_ratio: K线 实体 占总K线的比例 0.8 = 80%
+        :return:
+        """
+        # 计算跌幅+
+        low = kline['low']
+        high = kline['high']
+        close = kline['close']
+        open = kline['open']
+        if close >= open:
+            return False
+
+        # 计算跌幅
+        decline_ratio = (open - close) / open
+        # 必须是阴线且跌幅超过阈值
+        if decline_ratio < min_decline:
+            return False
+
+        # 计算是否为阴线实体较大
+        total_range = high - low
+        entity_size = open - close
+        actual_entity_ratio = entity_size / total_range
+        # 实体比例必须达到80%以上
+        return actual_entity_ratio >= entity_ratio
+
+    @staticmethod
+    def strategy_highToLow(klines: pd.DataFrame) -> bool:
+        """
+        低部冲高回落
+        :param klines:
+        :return:
+        """
+        # K线小于100条记录 返回FALSE
+        if len(klines) < XShare.__RECORD_COUNT or klines.empty:
+            return False
+        df_klines = klines.tail(XShare.__RECORD_COUNT)
+        try:
+            today_kline = df_klines.iloc[-1]
+            pre_kline = df_klines.iloc[-2]
+
+            today_high = today_kline['high']
+            today_low = today_kline['low']
+            today_open = today_kline['open']
+            today_close = today_kline['close']
+            today_vol = today_kline['volume']
+
+            pre_high = pre_kline['high']
+            pre_low = pre_kline['low']
+            pre_open = pre_kline['open']
+            pre_close = pre_kline['close']
+            pre_vol = pre_kline['volume']
+
+            # 今天的高点比昨天要低
+            # if today_high > pre_high:
+            #     return False
+            # 上一个交易日 要是阴线
+            if pre_close > pre_open:
+                return False
+            # 判断上影线要长
+            high_line = today_high - today_close
+            low_line = today_close - today_low
+            if high_line < low_line:
+                return False
+            macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+            last_DIF = macd_info.macd().iloc[-1]
+            last_DEA = macd_info.macd_signal().iloc[-1]
+            last_MACD = macd_info.macd_diff().iloc[-1]
+            if last_MACD < 0 or last_DIF < 0 or last_DEA < 0:
+                return False
+            if today_vol > pre_vol:
+                return False
+        except Exception as e:
+            # 处理其他异常
+            print(f"发生未知错误: {e}")
+            return False
+        return True
+
+    @staticmethod
     def strategy_bottomUpFlip(klines: pd.DataFrame, period='d') -> bool:
         """
-        策略 破低翻
+        破低翻
         "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
         :param klines:  最近 N天的交易记录 要保证传进来的K线数据大于100条  不大也没事
         :param period:  周期  d 日线  w 周线
@@ -325,7 +455,10 @@ def analyze_A(period='d'):
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
             # 开始分析K线数据
-            if XShare.strategy_bottomUpFlip(df, period):
+            # if XShare.strategy_bottomUpFlip(df, period):
+            #     code = code.split(".")[-1]
+            #     ret_results.append(code)
+            if XShare.strategy_highToLow(df):
                 code = code.split(".")[-1]
                 ret_results.append(code)
         except Exception as e:
@@ -439,7 +572,7 @@ if __name__ == '__main__':
     test = False
     if test:
         # 回测用
-        print(back_test('603717', '20250704', period='w'))
+        print(back_test('600103', '20250711', period='w'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
