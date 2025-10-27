@@ -304,12 +304,12 @@ class XShare:
             if period == 'w':
                 return True
 
-            # macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-            # # last_DIF = macd_info.macd().iloc[-1]
-            # # last_DEA = macd_info.macd_signal().iloc[-1]
-            # last_MACD = macd_info.macd_diff().iloc[-1]
-            # if last_MACD < 0:
-            #     return False
+            macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+            # last_DIF = macd_info.macd().iloc[-1]
+            # last_DEA = macd_info.macd_signal().iloc[-1]
+            last_MACD = macd_info.macd_diff().iloc[-1]
+            if last_MACD < 0:
+                return False
 
             # 获取最低点向前的N条记录
             sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
@@ -455,12 +455,12 @@ def analyze_A(period='d'):
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
             # 开始分析K线数据
-            # if XShare.strategy_bottomUpFlip(df, period):
-            #     code = code.split(".")[-1]
-            #     ret_results.append(code)
-            if XShare.strategy_highToLow(df):
+            if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
+            # if XShare.strategy_highToLow(df):
+            #     code = code.split(".")[-1]
+            #     ret_results.append(code)
         except Exception as e:
             nError += 1
             if nError == 1:
@@ -572,7 +572,7 @@ if __name__ == '__main__':
     test = False
     if test:
         # 回测用
-        print(back_test('600103', '20250711', period='w'))
+        print(back_test('603938', '20250930', period='d'))
         # print(back_test('300274', '20250711', period='w'))
     else:
         update_packets()
