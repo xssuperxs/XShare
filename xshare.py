@@ -303,14 +303,13 @@ class XShare:
                 return False
             if period == 'w':
                 return True
-
+            # 计算MACD
             macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
             # last_DIF = macd_info.macd().iloc[-1]
             # last_DEA = macd_info.macd_signal().iloc[-1]
             last_MACD = macd_info.macd_diff().iloc[-1]
             if last_MACD < 0:
                 return False
-
             # 获取最低点向前的N条记录
             sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
@@ -578,7 +577,8 @@ if __name__ == '__main__':
         update_packets()
         is_daily = True  # 日线 周线切换  true为日线
         if is_daily:
-            handle_results(analyze_A() + analyze_A_ETF())
+            handle_results(analyze_A())
+            # handle_results(analyze_A() + analyze_A_ETF())
         else:
             handle_results(analyze_A(period='w'))
         # 分析加密货币 币安 USDT 交易对
