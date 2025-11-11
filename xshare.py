@@ -1,4 +1,5 @@
 import time
+import sys
 
 import akshare as ak
 import baostock as bs
@@ -579,19 +580,27 @@ def handle_results(result):
 
 
 if __name__ == '__main__':
-    lg = bs.login()  # 登录系统
+    # 测试用
     test = False
     if test:
-        # 回测用
         print(back_test('603938', '20250930', period='d'))
-        # print(back_test('300274', '20250711', period='w'))
+        sys.exit(0)
+    # 这里开始分析
+    is_daily = True
+    if len(sys.argv) > 1:
+        # 只取第一个参数，忽略其他所有参数
+        single_param = sys.argv[1]
+        if single_param == 'w':
+            is_daily = False
+        if len(sys.argv) > 2:
+            is_daily = True
+
+    lg = bs.login()  # 登录系统
+    update_packets()
+    if is_daily:
+        handle_results(analyze_A() + analyze_A_ETF())
     else:
-        update_packets()
-        is_daily = True  # 日线 周线切换  true为日线
-        if is_daily:
-            handle_results(analyze_A() + analyze_A_ETF())
-        else:
-            handle_results(analyze_A(period='w'))
-        # 分析加密货币 币安 USDT 交易对
-        # print(analyze_BTC())
+        handle_results(analyze_A(period='w'))
+    # 分析加密货币 币安 USDT 交易对
+    # print(analyze_BTC())
     bs.logout()
