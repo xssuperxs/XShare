@@ -453,19 +453,22 @@ def analyze_A(period='d'):
         try:
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
-            # 开始分析K线数据
+            # 开始分析K线数据  破底翻
             if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
+            #  二波冲高回落
             # if XShare.strategy_highToLow(df):
             #     code = code.split(".")[-1]
             #     ret_results.append(code)
         except Exception as e:
             nError += 1
             if nError == 1:
-                print(f"发生未知错误: {e}")
+                print(f"A Error: {e}")
             continue
-    print("analyze_A error count:" + str(nError))
+    if nError > 1:
+        print("analyze_A error count:" + str(nError))
+
     return ret_results
 
 
@@ -475,16 +478,25 @@ def analyze_A_ETF():
     etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_df['代码'].to_list()
     print("[INFO] 分析 A股  ETF ...")
+    nError = 0
     for code in tqdm(codes, desc="Progress"):
-        hist_df = ak.fund_etf_hist_sina(symbol=code)
-        if hist_df.empty:
+        try:
+            hist_df = ak.fund_etf_hist_sina(symbol=code)
+            if hist_df.empty:
+                continue
+            latest_high = hist_df["high"].iloc[-1]
+            if latest_high > 50:
+                continue
+            if XShare.strategy_bottomUpFlip(hist_df, period='d'):
+                code = code[2:]
+                ret_results.append(code)
+        except Exception as e:
+            nError += 1
+            if nError == 1:
+                print(f"ETF  Error = : {e}")
             continue
-        latest_high = hist_df["high"].iloc[-1]
-        if latest_high > 50:
-            continue
-        if XShare.strategy_bottomUpFlip(hist_df, period='d'):
-            code = code[2:]
-            ret_results.append(code)
+    if nError > 1:
+        print("ETF error count:" + str(nError))
     return ret_results
 
 
@@ -577,8 +589,7 @@ if __name__ == '__main__':
         update_packets()
         is_daily = True  # 日线 周线切换  true为日线
         if is_daily:
-            handle_results(analyze_A())
-            # handle_results(analyze_A() + analyze_A_ETF())
+            handle_results(analyze_A() + analyze_A_ETF())
         else:
             handle_results(analyze_A(period='w'))
         # 分析加密货币 币安 USDT 交易对
