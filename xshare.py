@@ -592,8 +592,6 @@ if __name__ == '__main__':
         single_param = sys.argv[1]
         if single_param == 'w':
             is_daily = False
-        if len(sys.argv) > 2:
-            is_daily = True
 
     lg = bs.login()  # 登录系统
     update_packets()
