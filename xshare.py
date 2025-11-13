@@ -438,14 +438,11 @@ def analyze_A(period='d'):
         print("baostock 可能没有更新完成 稍后再试！")
         return []
     ret_results = []
-    str1 = '日K'
-    if period == 'w':
-        str1 = '周K'
 
     # 过滤掉不需要的个股 北证 和 688 开的
     pattern = r"\.9|\.8|\.4|\.688"
     # 使用 tqdm 包装循环，并设置中文描述
-    print("[INFO] 分析 A股股票和指数 ..." + str1)
+    print("[INFO] 分析 A股股票和指数 ...")
     nError = 0
     for code in tqdm(codes, desc="Progress"):
         # 过滤掉暂时不需要的代码
@@ -592,6 +589,8 @@ if __name__ == '__main__':
         single_param = sys.argv[1]
         if single_param == 'w':
             is_daily = False
+    result = "周K" if is_daily == 'w' else "日K"
+    print(result)
 
     lg = bs.login()  # 登录系统
     update_packets()
