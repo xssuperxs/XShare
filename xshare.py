@@ -589,7 +589,7 @@ if __name__ == '__main__':
         single_param = sys.argv[1]
         if single_param == 'w':
             is_daily = False
-    result = "周K" if is_daily == 'w' else "日K"
+    result = "日K" if is_daily else "周K"
     print(result)
 
     lg = bs.login()  # 登录系统
