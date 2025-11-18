@@ -578,9 +578,9 @@ def handle_results(result):
 
 if __name__ == '__main__':
     # 测试用
-    test = False
+    test = True
     if test:
-        print(back_test('603938', '20250930', period='d'))
+        print(back_test('603877', '20251107', period='w'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
