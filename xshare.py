@@ -578,7 +578,7 @@ def handle_results(result):
 
 if __name__ == '__main__':
     # 测试用
-    test = True
+    test = False
     if test:
         print(back_test('603122', '20251021', period='d'))
         sys.exit(0)
