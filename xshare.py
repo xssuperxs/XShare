@@ -23,7 +23,7 @@ class XShare:
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
-    __NEW_LOW_DAYS = 21
+    __NEW_LOW_DAYS = 13
 
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
@@ -578,9 +578,9 @@ def handle_results(result):
 
 if __name__ == '__main__':
     # 测试用
-    test = True
+    test = False
     if test:
-        print(back_test('603877', '20251107', period='w'))
+        print(back_test('000547', '20251024', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
@@ -592,8 +592,8 @@ if __name__ == '__main__':
     result = "日K" if is_daily else "周K"
     print(result)
 
-    lg = bs.login()  # 登录系统
     update_packets()
+    lg = bs.login()  # 登录系统
     if is_daily:
         handle_results(analyze_A() + analyze_A_ETF())
     else:
