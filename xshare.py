@@ -16,8 +16,6 @@ from dateutil.relativedelta import relativedelta
 
 
 class XShare:
-    __MIN_WINDOW = 2
-    __MAX_WINDOW = 4
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
