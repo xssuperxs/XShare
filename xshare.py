@@ -582,7 +582,7 @@ def handle_results(results):
 
 if __name__ == '__main__':
     # 测试用
-    test = True
+    test = False
     if test:
         print(back_test('601398', '20230310', period='w'))
         sys.exit(0)
