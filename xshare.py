@@ -1,5 +1,4 @@
 import time
-import sys
 
 import akshare as ak
 import baostock as bs
@@ -17,9 +16,8 @@ from dateutil.relativedelta import relativedelta
 
 
 class XShare:
-    # 时间窗口
-    __MIN_WINDOW_SIZE = 2
-    __MAX_WINDOW_SIZE = 4
+    __MIN_WINDOW = 2
+    __MAX_WINDOW = 4
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
@@ -179,12 +177,12 @@ class XShare:
 
             today_high = today_kline['high']
             today_low = today_kline['low']
-            today_open = today_kline['open']
+            # today_open = today_kline['open']
             today_close = today_kline['close']
             today_vol = today_kline['volume']
 
-            pre_high = pre_kline['high']
-            pre_low = pre_kline['low']
+            # pre_high = pre_kline['high']
+            # pre_low = pre_kline['low']
             pre_open = pre_kline['open']
             pre_close = pre_kline['close']
             pre_vol = pre_kline['volume']
@@ -215,10 +213,11 @@ class XShare:
         return True
 
     @staticmethod
-    def strategy_bottomUpFlip(klines: pd.DataFrame, period='d') -> bool:
+    def strategy_bottomUpFlip(klines: pd.DataFrame, period='d', window_size=2) -> bool:
         """
         破低翻
         "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
+        :param window_size: 滑动窗口大小
         :param klines:  最近 N天的交易记录 要保证传进来的K线数据大于100条  不大也没事
         :param period:  周期  d 日线  w 周线
         :return:  bool
@@ -238,11 +237,9 @@ class XShare:
 
             if pre_high > today_high:
                 return False
-            # 获取需要的时间窗口
-            # nSubWindow = [i for i in range(XShare.__MIN_WINDOW_SIZE, XShare.__MAX_WINDOW_SIZE)]
 
             # 获取波段的 高低点
-            highs_index, lows_index = XShare.__getWavePoints(df_klines, XShare.__MIN_WINDOW_SIZE, 'high', 'low')
+            highs_index, lows_index = XShare.__getWavePoints(df_klines, window_size, 'high', 'low')
 
             if len(lows_index) < 3 or len(highs_index) < 3:
                 return False
@@ -326,6 +323,13 @@ class XShare:
 
 # ================================================ 以上是 XShare的类 ===================================================
 
+def analyze_stocks(klines: pd.DataFrame, period='d') -> bool:
+    #  2和4 是需要的 时间窗口
+    for i in range(2, 4):
+        if XShare.strategy_bottomUpFlip(klines, period, i):
+            return True
+    return False
+
 
 def back_test(code, end_date, period='d'):
     """
@@ -339,7 +343,7 @@ def back_test(code, end_date, period='d'):
 
     df = _get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
 
-    return XShare.strategy_bottomUpFlip(df, period)
+    return analyze_stocks(df, period)
 
 
 def _get_klines_baostock(code, period='d'):
@@ -452,7 +456,7 @@ def analyze_A(period='d'):
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
             # 开始分析K线数据  破底翻
-            if XShare.strategy_bottomUpFlip(df, period):
+            if analyze_stocks(df, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
             #  二波冲高回落
@@ -485,7 +489,7 @@ def analyze_A_ETF():
             latest_high = hist_df["high"].iloc[-1]
             if latest_high > 50:
                 continue
-            if XShare.strategy_bottomUpFlip(hist_df, period='d'):
+            if analyze_stocks(hist_df, period='d'):
                 code = code[2:]
                 ret_results.append(code)
         except Exception as e:
@@ -525,7 +529,7 @@ def analyze_BTC():
                 continue
             json_data = response["Data"]["Data"]
             df = pd.DataFrame(json_data)
-            if XShare.strategy_bottomUpFlip(df):
+            if analyze_stocks(df):
                 ret_results.append(coin + '/USDT')
         except KeyError:
             pass
@@ -564,23 +568,23 @@ def update_packets():
     print("[INFO] All packages updated successfully!")
 
 
-def handle_results(result):
+def handle_results(results):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print("分析完成！： 共 ", len(result), '只:', result)
+    print("分析完成！： 共 ", len(results), '只:', results)
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
-        for item in result:
+        for item in results:
             file.write(f'{item}\n')
 
 
 if __name__ == '__main__':
     # 测试用
-    test = False
+    test = True
     if test:
-        print(back_test('603122', '20251021', period='d'))
+        print(back_test('601398', '20230310', period='w'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
