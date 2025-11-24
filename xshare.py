@@ -18,7 +18,7 @@ from dateutil.relativedelta import relativedelta
 
 class XShare:
     # 时间窗口
-    __MIN_WINDOW_SIZE = 3
+    __MIN_WINDOW_SIZE = 2
     __MAX_WINDOW_SIZE = 4
     # 记录数
     __RECORD_COUNT = 100
@@ -302,8 +302,6 @@ class XShare:
             sub_high_price = sub_check_high['high'].max()
             if sub_high_price != highPrice:
                 return False
-            if period == 'w':
-                return True
             # 计算MACD
             macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
             # last_DIF = macd_info.macd().iloc[-1]
@@ -311,6 +309,8 @@ class XShare:
             last_MACD = macd_info.macd_diff().iloc[-1]
             if last_MACD < 0:
                 return False
+            if period == 'w':
+                return True
             # 获取最低点向前的N条记录
             sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
@@ -578,9 +578,9 @@ def handle_results(result):
 
 if __name__ == '__main__':
     # 测试用
-    test = False
+    test = True
     if test:
-        print(back_test('000547', '20251024', period='d'))
+        print(back_test('603122', '20251021', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
