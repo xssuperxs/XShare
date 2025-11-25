@@ -211,11 +211,10 @@ class XShare:
         return True
 
     @staticmethod
-    def strategy_bottomUpFlip(klines: pd.DataFrame, period='d', window_size=2) -> bool:
+    def strategy_bottomUpFlip(klines: pd.DataFrame, period='d') -> bool:
         """
         破低翻
         "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
-        :param window_size: 滑动窗口大小
         :param klines:  最近 N天的交易记录 要保证传进来的K线数据大于100条  不大也没事
         :param period:  周期  d 日线  w 周线
         :return:  bool
@@ -236,82 +235,85 @@ class XShare:
             if pre_high > today_high:
                 return False
 
-            # 获取波段的 高低点
-            highs_index, lows_index = XShare.__getWavePoints(df_klines, window_size, 'high', 'low')
+            windows_size = [2, 3]
 
-            if len(lows_index) < 3 or len(highs_index) < 3:
-                return False
+            for n in windows_size:
+                # 获取波段的 高低点
+                highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
 
-            # 先判断 今天的高点 是否大于第一个波段
-            lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
-            if today_high < lastHighPrice:
-                return False
+                if len(lows_index) < 3 or len(highs_index) < 3:
+                    continue
 
-            # 先确定最低点
-            lowPrice = df_klines.iloc[lows_index[-1]]['low']
-            tmpLow = min(today_low, pre_low)
-            if tmpLow < lowPrice:
-                lows_index.append(XShare.__RECORD_COUNT - 1)
-            # 确定前低  和 最低
-            lowPoints = list(reversed(lows_index))
-            curLowIndex = -1
-            preLowIndex = -1
-            highIndex = -1
-            # 确定波段的最低点
-            for current, next_item in zip(lowPoints, lowPoints[1:]):
-                curLow = df_klines.iloc[current]['low']
-                nextLow = df_klines.iloc[next_item]['low']
-                if curLow < nextLow:
-                    curLowIndex = current
-                    break
-            if curLowIndex == -1:
-                return False
+                # 先判断 今天的高点 是否大于第一个波段
+                lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
+                if today_high < lastHighPrice:
+                    continue
 
-            # 确定波段的最高点
-            for nIndex in reversed(highs_index):
-                if nIndex <= curLowIndex:
-                    highIndex = nIndex
-                    break
-            if highIndex == -1:
-                return False
+                # 先确定最低点
+                lowPrice = df_klines.iloc[lows_index[-1]]['low']
+                tmpLow = min(today_low, pre_low)
+                if tmpLow < lowPrice:
+                    lows_index.append(XShare.__RECORD_COUNT - 1)
+                # 确定前低  和 最低
+                lowPoints = list(reversed(lows_index))
+                curLowIndex = -1
+                preLowIndex = -1
+                highIndex = -1
+                # 确定波段的最低点
+                for current, next_item in zip(lowPoints, lowPoints[1:]):
+                    curLow = df_klines.iloc[current]['low']
+                    nextLow = df_klines.iloc[next_item]['low']
+                    if curLow < nextLow:
+                        curLowIndex = current
+                        break
+                if curLowIndex == -1:
+                    continue
 
-            # 再确定高点波段前面的低点
-            for nIndex in reversed(lows_index):
-                if nIndex <= highIndex:
-                    preLowIndex = nIndex
-                    break
+                # 确定波段的最高点
+                for nIndex in reversed(highs_index):
+                    if nIndex <= curLowIndex:
+                        highIndex = nIndex
+                        break
+                if highIndex == -1:
+                    continue
 
-            curLowPrice = df_klines.iloc[curLowIndex]['low']
-            preLowPrice = df_klines.iloc[preLowIndex]['low']
-            # 判断破底翻
-            if curLowPrice > preLowPrice:
-                return False
+                # 再确定高点波段前面的低点
+                for nIndex in reversed(lows_index):
+                    if nIndex <= highIndex:
+                        preLowIndex = nIndex
+                        break
 
-            highPrice = df_klines.iloc[highIndex]['high']
-            # 判断过前波段高点
-            if today_high < highPrice:
-                return False
+                curLowPrice = df_klines.iloc[curLowIndex]['low']
+                preLowPrice = df_klines.iloc[preLowIndex]['low']
+                # 判断破底翻
+                if curLowPrice > preLowPrice:
+                    continue
 
-            # 判断前面波段的高点到昨天是最高点
-            sub_check_high = df_klines.iloc[highIndex: XShare.__RECORD_COUNT - 1]
-            sub_high_price = sub_check_high['high'].max()
-            if sub_high_price != highPrice:
-                return False
-            # 计算MACD
-            macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-            # last_DIF = macd_info.macd().iloc[-1]
-            # last_DEA = macd_info.macd_signal().iloc[-1]
-            last_MACD = macd_info.macd_diff().iloc[-1]
-            if last_MACD < 0:
-                return False
-            if period == 'w':
-                return True
-            # 获取最低点向前的N条记录
-            sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
-            n_day_low_price = sub_check_low['low'].min()
-            lowPrice = df_klines.iloc[curLowIndex]['low']
-            if lowPrice <= n_day_low_price:
-                return True
+                highPrice = df_klines.iloc[highIndex]['high']
+                # 判断过前波段高点
+                if today_high < highPrice:
+                    continue
+
+                # 判断前面波段的高点到昨天是最高点
+                sub_check_high = df_klines.iloc[highIndex: XShare.__RECORD_COUNT - 1]
+                sub_high_price = sub_check_high['high'].max()
+                if sub_high_price != highPrice:
+                    continue
+                # 计算MACD
+                macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+                # last_DIF = macd_info.macd().iloc[-1]
+                # last_DEA = macd_info.macd_signal().iloc[-1]
+                last_MACD = macd_info.macd_diff().iloc[-1]
+                if last_MACD < 0:
+                    continue
+                if period == 'w':
+                    return True
+                # 获取最低点向前的N条记录
+                sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
+                n_day_low_price = sub_check_low['low'].min()
+                lowPrice = df_klines.iloc[curLowIndex]['low']
+                if lowPrice <= n_day_low_price:
+                    return True
         except Exception as e:
             # 处理其他异常
             print(f"发生未知错误: {e}")
@@ -320,13 +322,6 @@ class XShare:
 
 
 # ================================================ 以上是 XShare的类 ===================================================
-
-def analyze_stocks(klines: pd.DataFrame, period='d') -> bool:
-    #  2和4 是需要的 时间窗口
-    for i in range(2, 4):
-        if XShare.strategy_bottomUpFlip(klines, period, i):
-            return True
-    return False
 
 
 def back_test(code, end_date, period='d'):
@@ -341,7 +336,7 @@ def back_test(code, end_date, period='d'):
 
     df = _get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
 
-    return analyze_stocks(df, period)
+    return XShare.strategy_bottomUpFlip(df, period)
 
 
 def _get_klines_baostock(code, period='d'):
@@ -454,7 +449,7 @@ def analyze_A(period='d'):
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
             # 开始分析K线数据  破底翻
-            if analyze_stocks(df, period):
+            if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
             #  二波冲高回落
@@ -487,7 +482,7 @@ def analyze_A_ETF():
             latest_high = hist_df["high"].iloc[-1]
             if latest_high > 50:
                 continue
-            if analyze_stocks(hist_df, period='d'):
+            if XShare.strategy_bottomUpFlip(hist_df, period='d'):
                 code = code[2:]
                 ret_results.append(code)
         except Exception as e:
@@ -527,7 +522,7 @@ def analyze_BTC():
                 continue
             json_data = response["Data"]["Data"]
             df = pd.DataFrame(json_data)
-            if analyze_stocks(df):
+            if XShare.strategy_bottomUpFlip(df):
                 ret_results.append(coin + '/USDT')
         except KeyError:
             pass
@@ -582,7 +577,7 @@ if __name__ == '__main__':
     # 测试用
     test = False
     if test:
-        print(back_test('601398', '20230310', period='w'))
+        print(back_test('300094', '20251110', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True

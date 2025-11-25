@@ -1,6 +1,6 @@
 from xshare import XShare
 
-XShare.strategy_bottomUpFlip([])
+# XShare.strategy_bottomUpFlip([])
 
 
 def login():
