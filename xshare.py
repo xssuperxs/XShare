@@ -299,6 +299,8 @@ class XShare:
                 sub_high_price = sub_check_high['high'].max()
                 if sub_high_price != highPrice:
                     continue
+                if period == 'w':
+                    return True
                 # MACD
                 macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
                 # last_DIF = macd_info.macd().iloc[-1]
@@ -306,8 +308,6 @@ class XShare:
                 last_MACD = macd_info.macd_diff().iloc[-1]
                 if last_MACD < 0:
                     continue
-                if period == 'w':
-                    return True
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
