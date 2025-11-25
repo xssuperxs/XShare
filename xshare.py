@@ -234,10 +234,10 @@ class XShare:
 
             if pre_high > today_high:
                 return False
+            # 滑动窗口大小
+            window_size = [2, 3]
 
-            windows_size = [2, 3]
-
-            for n in windows_size:
+            for n in window_size:
                 # 获取波段的 高低点
                 highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
 
@@ -299,7 +299,7 @@ class XShare:
                 sub_high_price = sub_check_high['high'].max()
                 if sub_high_price != highPrice:
                     continue
-                # 计算MACD
+                # MACD
                 macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
                 # last_DIF = macd_info.macd().iloc[-1]
                 # last_DEA = macd_info.macd_signal().iloc[-1]
@@ -308,7 +308,7 @@ class XShare:
                     continue
                 if period == 'w':
                     return True
-                # 获取最低点向前的N条记录
+                # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
                 lowPrice = df_klines.iloc[curLowIndex]['low']
