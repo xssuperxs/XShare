@@ -1,134 +1,40 @@
-import time
-
-import akshare as ak
+import thsdata
 import pandas as pd
-import baostock as bs
-import csv
-from tqdm import tqdm
-import requests
-import ccxt
-
-from binance import Client
-
-# 初始化客户端（公共API无需密钥）
-
-import cryptocompare
-
-# 获取ETF实时行情
-etf_info = ak.fund_etf_category_sina(symbol="ETF基金")
-print(etf_info)
-
-# 登录 Baostock 系统
-lg = bs.login()
-
-# 获取所有证券（股票、ETF、指数等）的基本信息
-# rs = bs.query_all_stock()
-rs = bs.query_stock_basic()
-data_list = []
-while (rs.error_code == '0') & rs.next():
-    data_list.append(rs.get_row_data())
 
 
-for doc in data_list:
-    print(doc)
+def get_all_stock_codes():
+    """
+    获取所有A股股票代码
+    """
+    # 登录
+    td = thsdata.Data()
+    if not td.login(user="18522276766", password="123456tt", exe_path="D:\\同花顺软件\\同花顺\\hexinlauncher.exe"):
+        print("登录失败！")
+        return None
 
-# 转换为 DataFrame
-columns = ["code", "trade_code", "sec_name", "ticker", "fund_name", "publish_date", "list_date", "issue_type"]
-all_stocks = pd.DataFrame(data_list, columns=columns)
+    try:
+        # 定义不同市场的代码
+        # 上海交易所
+        sh_stocks = td.get_stock_list(market="SH")  # 或类似方法
+        # 深圳交易所
+        sz_stocks = td.get_stock_list(market="SZ")  # 或类似方法
 
-# 筛选 ETF（上海 ETF 代码通常以 51 开头，深圳以 15 开头）
-etf_df = all_stocks[
-    all_stocks["code"].str.startswith("sh.51") |
-    all_stocks["code"].str.startswith("sz.15")
-]
+        # 合并两个市场的股票
+        all_stocks = sh_stocks + sz_stocks
 
-# 登出
-bs.logout()
+        print(f"共获取到 {len(all_stocks)} 只股票")
+        return all_stocks
 
-# 查看前5条 ETF 数据
-print(etf_df.head())
-print(etf_df.head())
-
-#     return usdt_pairs
-# exchange = 'Binance'  # 币安交易所名称
-# pairs = cryptocompare.get_pairs(exchange=exchange)
-#
-# print(pairs)
-# # 打印所有交易对
-# for pair in pairs:
-#     print(f"{pair['fsym']}/{pair['tsym']}")
+    except Exception as e:
+        print(f"获取股票列表时出错: {e}")
+        return None
+    finally:
+        td.logout()
 
 
-# url = "https://min-api.cryptocompare.com/data/v4/all/exchanges?e=binance"
-# response = requests.get(url)
-# print(response)
-# data = response.json()
-# print(data)
-#
-# # 检查返回的数据结构
-# print(data.keys())  # 查看顶层键
-# print(data["Data"]['exchanges']['Binance']['pairs'].keys())  # 查看交易所列表
-# print(data.keys())  # 查看顶层键
-# 测试输出
-# pairs = get_binance_usdt_pairs()
-# print(f"获取到 {len(pairs)} 个币安USDT交易对")
-# print(pairs[:10])  # 打印前10个
-
-#
-#
-# # 获取并打印前20个币安USDT交易对
-# binance_pairs = get_binance_pairs_formatted()
-# print(binance_pairs)
-# print("币安USDT交易对(示例):")
-# for pair in binance_pairs[:20]:
-#     print(pair)
-
-# coins = cryptocompare.get_coin_list()
-#
-# usdt_coins = [coin for coin in coins.values() if 'USDT' in coin.get('Symbol', '')]
-#
-# # 2. 获取BTC/USDT日K线
-# btc_data = cryptocompare.get_historical_price_day('BTC', 'USDT', limit=30)
-#
-# # 转换为DataFrame
-# df = pd.DataFrame(btc_data)
-# df = df.drop(columns=['conversionType', 'conversionSymbol', 'volumeto', 'volumefrom'])
-# df['date'] = pd.to_datetime(df['time'], unit='s')
-# df = df.drop(columns=['time'])
-# # df.set_index('date', inplace=True)
-# print(df)
-# print(1)
-
-# print(f"共找到 {len(usdt_coins)} 个USDT交易对")
-
-# # client = Client()
-#
-#
-# print(data)
-# 获取USDT交易对
-# usdt_pairs = get_usdt_trading_pairs()
-# print(f"找到 {len(usdt_pairs)} 个USDT交易对")
-# for pair in usdt_pairs:  # 打印前10个
-#     print(f"{pair['symbol']} - {pair['name']}")
-
-#
-# bs.login()
-#
-# start_date = "1970-01-01"
-# # 获取所有历史K线数据（从上市日期至今）
-# rs = bs.query_history_k_data_plus(
-#     code='sh.000004',
-#     fields="date,open,close,high,low,volume",  # 字段可调整
-#     start_date='2020-06-06',  # 尽可能早的日期
-#     end_date='2025-06-06',  # 未来日期确保覆盖最新数据
-#     frequency='w',  # d=日线，w=周线，m=月线
-#     adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
-# )
-# data_list = []
-# while (rs.error_code == '0') & rs.next():
-#     data_list.append(rs.get_row_data())
-#
-# df = pd.DataFrame(data_list, columns=rs.fields)
-# print(df)
-#
-# bs.logout()
+# 使用示例
+codes = get_all_stock_codes()
+if codes:
+    # 打印前20只股票
+    for i, code in enumerate(codes[:20]):
+        print(f"{i + 1}: {code}")
