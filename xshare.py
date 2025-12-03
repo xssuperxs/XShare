@@ -306,7 +306,7 @@ class XShare:
                 # last_DIF = macd_info.macd().iloc[-1]  # 快线
                 # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
                 last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
-                if last_MACD < 0:
+                if last_MACD < -0.05:
                     continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
@@ -575,9 +575,9 @@ def handle_results(results):
 
 if __name__ == '__main__':
     # 测试用
-    test = False
+    test = True
     if test:
-        print(back_test('002407', '20250725', period='w'))
+        print(back_test('301191', '20251125', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
