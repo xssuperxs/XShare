@@ -19,7 +19,7 @@ class XShare:
     # 记录数
     __RECORD_COUNT = 100
     # 创新低天数
-    __NEW_LOW_DAYS = 13
+    __NEW_LOW_DAYS = 18
 
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
@@ -302,12 +302,12 @@ class XShare:
                 if period == 'w':
                     return True
                 # MACD
-                macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+                # macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
                 # last_DIF = macd_info.macd().iloc[-1]  # 快线
                 # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
-                last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
-                if last_MACD < -0.025:
-                    continue
+                # last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
+                # if last_MACD < (-0.026):
+                #     continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
