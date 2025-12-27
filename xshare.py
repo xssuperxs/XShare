@@ -20,22 +20,6 @@ class XShare:
     __RECORD_COUNT = 100
     # 创新低天数
     __NEW_LOW_DAYS = 18
-
-    @staticmethod
-    def calculate_limit_up_price(prev_close, limit_rate=0.10):
-        """
-        计算涨停价
-
-        参数:
-        prev_close: 前收盘价
-        limit_rate: 涨跌幅限制（默认10%）
-
-        返回:
-        float: 涨停价（四舍五入到0.01元）
-        """
-        limit_up = prev_close * (1 + limit_rate)
-        return round(limit_up, 2)
-
     @staticmethod
     def __extractFrequentElements(input_list: list, nCount: int) -> list:
         """
@@ -317,12 +301,12 @@ class XShare:
                 if period == 'w':
                     return True
                 # MACD
-                # macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
+                macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
                 # last_DIF = macd_info.macd().iloc[-1]  # 快线
                 # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
-                # last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
-                # if last_MACD < (-0.026):
-                #     continue
+                last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
+                if last_MACD < 0:
+                    continue
                 # 判断是否出现过涨停板
                 close_prices = tuple(klines['close'].tolist())
                 is_limit_up = False
@@ -338,7 +322,7 @@ class XShare:
                         is_limit_up = True
                         break
                 if not is_limit_up:
-                    return False
+                    continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
