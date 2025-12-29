@@ -229,6 +229,7 @@ class XShare:
 
             today_high = today_kline['high']
             today_low = today_kline['low']
+            today_close = today_kline['close']
             pre_high = pre_kline['high']
             pre_low = pre_kline['low']
 
@@ -303,13 +304,14 @@ class XShare:
                     return True
 
                 # MACD
-                if n == 2:
-                    macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-                    # last_DIF = macd_info.macd().iloc[-1]  # 快线
-                    # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
-                    last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
-                    if last_MACD < 0:
-                        continue
+                close_price = df_klines['close']
+                new_series = pd.Series(list(close_price) + [today_close])
+                macd_info = MACD(close=new_series, window_fast=12, window_slow=26, window_sign=9)
+                # last_DIF = macd_info.macd().iloc[-1]  # 快线
+                # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
+                last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
+                if last_MACD < 0:
+                    continue
                 # 判断是否出现过涨停板
                 # close_prices = tuple(klines['close'].tolist())
                 # is_limit_up = False
@@ -595,7 +597,7 @@ if __name__ == '__main__':
     # 测试用
     test = False
     if test:
-        print(back_test('601669', '20251223', period='w'))
+        print(back_test('605318', '20251215', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
