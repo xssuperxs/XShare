@@ -304,8 +304,8 @@ class XShare:
                     return True
 
                 # MACD
-                close_price = df_klines['close']
-                new_series = pd.Series(list(close_price) + [today_close])
+                # new_series = pd.Series(list(df_klines['close']))
+                new_series = pd.Series(list(df_klines['close']) + [today_close] + [today_close])
                 macd_info = MACD(close=new_series, window_fast=12, window_slow=26, window_sign=9)
                 # last_DIF = macd_info.macd().iloc[-1]  # 快线
                 # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
