@@ -459,7 +459,7 @@ def analyze_A(period='d'):
     # 过滤掉不需要的个股 北证 和 688 开的
     pattern = r"\.9|\.8|\.4|\.688"
     # 使用 tqdm 包装循环，并设置中文描述
-    print("[INFO] 分析 A股股票和指数 ...")
+    print("[INFO] Analyzing  A stocks and Index...")
     nError = 0
     for code in tqdm(codes, desc="Progress"):
         # 过滤掉暂时不需要的代码
@@ -492,7 +492,7 @@ def analyze_A_ETF():
     # etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_df['代码'].to_list()
-    print("[INFO] 分析 A股  ETF ...")
+    print("[INFO] Analyzing  A ETF...")
     nError = 0
     for code in tqdm(codes, desc="Progress"):
         try:
@@ -585,7 +585,7 @@ def handle_results(results):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print("分析完成！： 共 ", len(results), '只:', results)
+    print("分析完成！： 符合策略的 共 ", len(results), ' 只股票:')
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
