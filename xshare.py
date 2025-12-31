@@ -585,7 +585,7 @@ def handle_results(results):
     # 输出的文件路径
     file_path = "D:\\Users\\Administrator\\Desktop\\stock.txt"
 
-    print("分析完成！： 符合策略的 共 ", len(results), ' 只股票:')
+    print("Analysis completed.： total: ", len(results))
 
     with open(file_path, 'w') as file:
         # 将数组的每个元素写入文件，每个元素占一行
