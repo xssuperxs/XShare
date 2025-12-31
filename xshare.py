@@ -597,7 +597,7 @@ if __name__ == '__main__':
     # 测试用
     test = False
     if test:
-        print(back_test('605318', '20251215', period='d'))
+        print(back_test('002969', '20251202', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
