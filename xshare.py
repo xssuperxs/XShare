@@ -639,13 +639,10 @@ if __name__ == '__main__':
         single_param = sys.argv[1]
         if single_param == 'w':
             is_daily = False
-    period = 'd' if is_daily else "w"
-    print(period)
+    p_period = 'd' if is_daily else "w"
+    print(p_period)
 
     update_packets()
     lg = bs.login()  # 登录系统
-    if is_daily:
-        handle_results(analyze_A() + analyze_A_ETF(period))
-    else:
-        handle_results(analyze_A(period='w'))
+    handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
