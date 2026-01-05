@@ -639,15 +639,13 @@ if __name__ == '__main__':
         single_param = sys.argv[1]
         if single_param == 'w':
             is_daily = False
-    result = "日K" if is_daily else "周K"
-    print(result)
+    period = 'd' if is_daily else "w"
+    print(period)
 
     update_packets()
     lg = bs.login()  # 登录系统
     if is_daily:
-        handle_results(analyze_A() + analyze_A_ETF())
+        handle_results(analyze_A() + analyze_A_ETF(period))
     else:
         handle_results(analyze_A(period='w'))
-    # 分析加密货币 币安 USDT 交易对
-    # print(analyze_BTC())
     bs.logout()
