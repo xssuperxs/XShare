@@ -487,23 +487,56 @@ def analyze_A(period='d'):
     return ret_results
 
 
-def analyze_A_ETF():
+def get_etf_klines(symbol: str, period: str):
+    """
+    :type symbol: 股票代码
+    :param period: 周期 日 daily 周 weekly
+    """
+    if period == 'd':
+        etf_hist_kline = ak.fund_etf_hist_sina(symbol=symbol)
+    else:
+        period = 'weekly'
+        etf_hist_kline = ak.fund_etf_hist_em(symbol=symbol, period=period)
+        column_mapping = {
+            '日期': 'date',
+            '开盘': 'open',
+            '收盘': 'close',
+            '最高': 'high',
+            '最低': 'low',
+            '成交量': 'volume',
+            # '成交额': 'amount',
+            # '振幅': 'amplitude',
+            # '涨跌幅': 'change_pct',
+            # '涨跌额': 'change_amt',
+            # '换手率': 'turnover'
+        }
+        etf_hist_kline = etf_hist_kline.rename(columns=column_mapping)
+
+    if etf_hist_kline.empty or etf_hist_kline['high'].iloc[-1] > 50:
+        return pd.DataFrame()
+    return etf_hist_kline
+
+
+def analyze_A_ETF(period: str = 'd'):
     ret_results = []
-    # etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
-    etf_df = ak.fund_etf_category_sina(symbol="ETF基金")
-    codes = etf_df['代码'].to_list()
+    etf_spot = pd.DataFrame()
+    if period == 'd':
+        etf_spot = ak.fund_etf_category_sina(symbol="ETF基金")
+    if period == 'w':
+        etf_spot = ak.fund_etf_spot_em()
+
+    # 获取 ETF 代码
+    codes = etf_spot['代码'].to_list()
     print("[INFO] Analyzing  A ETF...")
     nError = 0
     for code in tqdm(codes, desc="Progress"):
         try:
-            hist_df = ak.fund_etf_hist_sina(symbol=code)
+            hist_df = get_etf_klines(code, period)
             if hist_df.empty:
                 continue
-            latest_high = hist_df["high"].iloc[-1]
-            if latest_high > 50:
-                continue
-            if XShare.strategy_bottomUpFlip(hist_df, period='d'):
-                code = code[2:]
+            if XShare.strategy_bottomUpFlip(hist_df, period=period):
+                if period == 'd':
+                    code = code[2:]
                 ret_results.append(code)
         except Exception as e:
             nError += 1
@@ -597,7 +630,7 @@ if __name__ == '__main__':
     # 测试用
     test = False
     if test:
-        print(back_test('002969', '20251202', period='d'))
+        print(back_test('600498', '20251126', period='d'))
         sys.exit(0)
     # 这里开始分析
     is_daily = True
