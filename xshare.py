@@ -632,17 +632,16 @@ if __name__ == '__main__':
     if test:
         print(back_test('600498', '20251126', period='d'))
         sys.exit(0)
-    # 这里开始分析
-    is_daily = True
+    p_period = 'd'
     if len(sys.argv) > 1:
         # 只取第一个参数，忽略其他所有参数
         single_param = sys.argv[1]
         if single_param == 'w':
-            is_daily = False
-    p_period = 'd' if is_daily else "w"
+            p_period = 'w'
     print(p_period)
-
+    # 更新需要的包
     update_packets()
-    lg = bs.login()  # 登录系统
+    # 登陆 开始分析股票和ETF
+    lg = bs.login()
     handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
