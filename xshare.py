@@ -629,17 +629,12 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
-    # 测试用
     test = False
     if test:
         print(back_test('002603', '20260105', period='d'))
         sys.exit(0)
-    p_period = 'd'
-    if len(sys.argv) > 1:
-        # 只取第一个参数，忽略其他所有参数
-        single_param = sys.argv[1]
-        if single_param == 'w':
-            p_period = 'w'
+
+    p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
     # 更新需要的包
     update_packets()
