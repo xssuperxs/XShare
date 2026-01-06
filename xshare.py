@@ -456,7 +456,7 @@ def analyze_A(period='d'):
         return []
 
     # 过滤掉暂时不需要的代码
-    patterns = [".7", ".9", ".688", ".4", '.7']
+    patterns = [".7", ".9", ".688", ".4"]
     filtered_codes = [item for item in codes if not any(pattern in item for pattern in patterns)]
 
     # 使用 tqdm 包装循环，并设置中文描述
@@ -471,7 +471,7 @@ def analyze_A(period='d'):
             if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
-            #  二波冲高回落
+            # 前一根阴 首阳
             # if XShare.strategy_highToLow(df):
             #     code = code.split(".")[-1]
             #     ret_results.append(code)
