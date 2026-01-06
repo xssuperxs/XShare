@@ -10,7 +10,6 @@ import pandas as pd
 import subprocess
 import sys
 from tqdm import tqdm
-import re
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
