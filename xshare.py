@@ -634,7 +634,7 @@ if __name__ == '__main__':
     # 测试用
     test = False
     if test:
-        print(back_test('301293', '20251218', period='d'))
+        print(back_test('002603', '20260105', period='d'))
         sys.exit(0)
     p_period = 'd'
     if len(sys.argv) > 1:
