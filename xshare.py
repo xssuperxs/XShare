@@ -535,7 +535,11 @@ def analyze_A_ETF(period: str = 'd'):
             if hist_df.empty:
                 continue
             if XShare.strategy_bottomUpFlip(hist_df, period=period):
+                # 判断下ETF 成交量
                 if period == 'd':
+                    last_volume = hist_df['volume'].iloc[-1]
+                    if last_volume < 100000000:
+                        continue
                     code = code[2:]
                 ret_results.append(code)
         except Exception as e:
@@ -643,5 +647,6 @@ if __name__ == '__main__':
     update_packets()
     # 登陆 开始分析股票和ETF
     lg = bs.login()
-    handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
+    handle_results(analyze_A_ETF(p_period))
+    # handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()

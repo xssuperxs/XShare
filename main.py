@@ -3,6 +3,18 @@ import pandas as pd
 import baostock as bs
 from datetime import datetime, timedelta
 
+lg = bs.login()
+rs = bs.query_all_stock('2026-01-05')
+
+# 提取股票代码到列表
+stock_codes = []
+while (rs.error_code == '0') & rs.next():
+    stock_codes.append(rs.get_row_data()[0])  # 股票代码通常在第一个位置
+
+print(f"共获取 {len(stock_codes)} 只股票")
+print("前10只股票代码:", stock_codes[:10])
+
+bs.logout()
 
 # def calculate_limit_up_price(prev_close, limit_rate=0.10):
 #     """
