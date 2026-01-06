@@ -454,17 +454,16 @@ def analyze_A(period='d'):
     if not codes:
         print("baostock 可能没有更新完成 稍后再试！")
         return []
-    ret_results = []
 
-    # 过滤掉不需要的个股 北证 和 688 开的
-    pattern = r"\.9|\.8|\.4|\.688"
+    # 过滤掉暂时不需要的代码
+    patterns = [".7", ".9", ".688", ".4", '.7']
+    filtered_codes = [item for item in codes if not any(pattern in item for pattern in patterns)]
+
     # 使用 tqdm 包装循环，并设置中文描述
     print("[INFO] Analyzing  A stocks and Index...")
     nError = 0
-    for code in tqdm(codes, desc="Progress"):
-        # 过滤掉暂时不需要的代码
-        if re.search(pattern, code):
-            continue
+    ret_results = []
+    for code in tqdm(filtered_codes, desc="Progress"):
         try:
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
@@ -647,6 +646,5 @@ if __name__ == '__main__':
     update_packets()
     # 登陆 开始分析股票和ETF
     lg = bs.login()
-    handle_results(analyze_A_ETF(p_period))
-    # handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
+    handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
