@@ -636,9 +636,9 @@ if __name__ == '__main__':
 
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
-    # 更新需要的包
+    # 更新包
     update_packets()
-    # 登陆 开始分析股票和ETF
+    # 开始分析
     lg = bs.login()
     handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
