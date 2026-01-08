@@ -550,41 +550,6 @@ def analyze_A_ETF(period: str = 'd'):
     return ret_results
 
 
-def analyze_BTC():
-    _URL_PAIRS = "https://min-api.cryptocompare.com/data/pair/mapping/exchange?e={}"
-    _URL_HIST_PRICE_DAY = "https://min-api.cryptocompare.com/data/v2/histoday?fsym={}&tsym={}&limit={}&e={}&toTs={}"
-
-    response = requests.get(_URL_PAIRS.format('Binance')).json()
-    if response:
-        all_pairs = response["Data"]
-    else:
-        return None
-
-    coins = [
-        pair['fsym']  # 只保留基础货币，如 'BTC', 'ETH'
-        for pair in all_pairs
-        if pair['tsym'] == 'USDT'  # 只选择 USDT 交易对
-    ]
-    ret_results = []
-    print("[INFO] 分析 加密货币（BTC 相关） ...")
-    for coin in tqdm(coins, desc="Progress"):
-        # 100 是要获取的条数
-        request_url_historical_day = _URL_HIST_PRICE_DAY.format(coin, 'USDT', 100, 'Binance', int(time.time()))
-
-        try:
-            response = requests.get(request_url_historical_day).json()
-            if not response:
-                continue
-            json_data = response["Data"]["Data"]
-            df = pd.DataFrame(json_data)
-            if XShare.strategy_bottomUpFlip(df):
-                ret_results.append(coin + '/USDT')
-        except KeyError:
-            pass
-
-    return ret_results
-
-
 def update_packets():
     """
     更新需要的库（pip、akshare、baostock），并显示进度条
