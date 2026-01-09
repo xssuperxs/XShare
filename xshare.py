@@ -578,7 +578,7 @@ def update_packets():
             except Exception as e:
                 tqdm.write(f"[ERROR] Unexpected error with {package['name']}: {e}")
 
-    print("[INFO] All packages updated successfully!")
+    # print("[INFO] All packages updated successfully!")
 
 
 def handle_results(results):
