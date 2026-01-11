@@ -299,8 +299,6 @@ class XShare:
                 sub_high_price = sub_check_high['high'].max()
                 if sub_high_price != highPrice:
                     continue
-                if period == 'w':
-                    return True
 
                 # MACD
                 # new_series = pd.Series(list(df_klines['close']))
@@ -311,6 +309,8 @@ class XShare:
                 last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
                 if last_MACD < 0:
                     continue
+                if period == 'w':
+                    return True
                 # 判断是否出现过涨停板
                 # close_prices = tuple(klines['close'].tolist())
                 # is_limit_up = False
@@ -596,7 +596,7 @@ def handle_results(results):
 if __name__ == '__main__':
     test = False
     if test:
-        print(back_test('301363', '20251218', period='d'))
+        print(back_test('300896', '20251218', period='d'))
         sys.exit(0)
 
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
