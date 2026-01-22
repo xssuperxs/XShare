@@ -487,23 +487,19 @@ def get_etf_klines(symbol: str, period: str):
     :type symbol: 股票代码
     :param period: 周期 日 daily 周 weekly
     """
-    s_period = 'daily' if period == 'd' else 'weekly'
-
-    etf_hist_kline = ak.fund_etf_hist_em(symbol=symbol, period=s_period)
-    column_mapping = {
-        '日期': 'date',
-        '开盘': 'open',
-        '收盘': 'close',
-        '最高': 'high',
-        '最低': 'low',
-        '成交量': 'volume',
-        # '成交额': 'amount',
-        # '振幅': 'amplitude',
-        # '涨跌幅': 'change_pct',
-        # '涨跌额': 'change_amt',
-        # '换手率': 'turnover'
-    }
-    etf_hist_kline = etf_hist_kline.rename(columns=column_mapping)
+    if period == 'd':
+        etf_hist_kline = ak.fund_etf_hist_sina(symbol)
+    else:
+        etf_hist_kline = ak.fund_etf_hist_em(symbol=symbol, period='weekly')
+        column_mapping = {
+            '日期': 'date',
+            '开盘': 'open',
+            '收盘': 'close',
+            '最高': 'high',
+            '最低': 'low',
+            '成交量': 'volume'
+        }
+        etf_hist_kline = etf_hist_kline.rename(columns=column_mapping)
 
     if etf_hist_kline.empty or etf_hist_kline['high'].iloc[-1] > 50:
         return pd.DataFrame()
@@ -513,7 +509,10 @@ def get_etf_klines(symbol: str, period: str):
 def analyze_A_ETF(period: str = 'd'):
     ret_results = []
     # 获取 ETF 代码
-    etf_spot = ak.fund_etf_spot_em()
+    if period == 'd':
+        etf_spot = ak.fund_etf_category_sina(symbol="ETF基金")
+    else:
+        etf_spot = ak.fund_etf_spot_em()
     codes = etf_spot['代码'].to_list()
     print("[INFO] Analyzing  A ETF...")
     nError = 0
@@ -527,7 +526,8 @@ def analyze_A_ETF(period: str = 'd'):
                 last_volume = hist_df['volume'].iloc[-1]
                 if last_volume < 100000000:
                     continue
-                ret_results.append(code)
+                code_ok = str(code)[-6:]
+                ret_results.append(code_ok)
         except Exception as e:
             nError += 1
             if nError == 1:
@@ -586,13 +586,12 @@ if __name__ == '__main__':
     if test:
         print(back_test('300606', '20251224', period='d'))
         sys.exit(0)
-
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
     # 更新包
     update_packets()
     # 开始分析
     lg = bs.login()
-    # handle_results(analyze_A_ETF(p_period))
-    handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
+    handle_results(analyze_A_ETF(p_period))
+    # handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
