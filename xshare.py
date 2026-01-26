@@ -533,8 +533,8 @@ def analyze_A_ETF(period: str = 'd'):
                 continue
             if XShare.strategy_bottomUpFlip(hist_df, period=period):
                 # 判断下ETF 成交额
-                last_volume = hist_df['amount'].iloc[-1]
-                if last_volume < 100000000:
+                last_amount = hist_df['amount'].iloc[-1]
+                if last_amount < 100000000:
                     continue
                 code_ok = str(code)[-6:]
                 ret_results.append(code_ok)
