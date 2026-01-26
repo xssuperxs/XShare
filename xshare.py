@@ -482,6 +482,28 @@ def analyze_A(period='d'):
     return ret_results
 
 
+def daily_to_weekly(etf_hist_daily):
+    # 设置日期索引
+    etf_hist_daily['date'] = pd.to_datetime(etf_hist_daily['date'])
+    etf_hist_daily.set_index('date', inplace=True)
+
+    # 确保索引是datetime类型
+    if not pd.api.types.is_datetime64_any_dtype(etf_hist_daily.index):
+        etf_hist_daily.index = pd.to_datetime(etf_hist_daily.index)
+
+    # 按周重采样
+    etf_hist_weekly = etf_hist_daily.resample('W').agg({
+        'open': 'first',
+        'close': 'last',
+        'high': 'max',
+        'low': 'min',
+        'volume': 'sum',
+        'amount': 'sum'
+    })
+    # 删除NaN行
+    return etf_hist_weekly.dropna()
+
+
 def get_etf_klines(symbol: str, period: str):
     """
     :type symbol: 股票代码
@@ -490,16 +512,7 @@ def get_etf_klines(symbol: str, period: str):
     if period == 'd':
         etf_hist_kline = ak.fund_etf_hist_sina(symbol)
     else:
-        etf_hist_kline = ak.fund_etf_hist_em(symbol=symbol, period='weekly')
-        column_mapping = {
-            '日期': 'date',
-            '开盘': 'open',
-            '收盘': 'close',
-            '最高': 'high',
-            '最低': 'low',
-            '成交量': 'volume'
-        }
-        etf_hist_kline = etf_hist_kline.rename(columns=column_mapping)
+        etf_hist_kline = daily_to_weekly(ak.fund_etf_hist_sina(symbol))
 
     if etf_hist_kline.empty or etf_hist_kline['high'].iloc[-1] > 50:
         return pd.DataFrame()
@@ -509,10 +522,7 @@ def get_etf_klines(symbol: str, period: str):
 def analyze_A_ETF(period: str = 'd'):
     ret_results = []
     # 获取 ETF 代码
-    if period == 'd':
-        etf_spot = ak.fund_etf_category_sina(symbol="ETF基金")
-    else:
-        etf_spot = ak.fund_etf_spot_em()
+    etf_spot = ak.fund_etf_category_sina(symbol="ETF基金")
     codes = etf_spot['代码'].to_list()
     print("[INFO] Analyzing  A ETF...")
     nError = 0
@@ -522,8 +532,8 @@ def analyze_A_ETF(period: str = 'd'):
             if hist_df.empty:
                 continue
             if XShare.strategy_bottomUpFlip(hist_df, period=period):
-                # 判断下ETF 成交量
-                last_volume = hist_df['volume'].iloc[-1]
+                # 判断下ETF 成交额
+                last_volume = hist_df['amount'].iloc[-1]
                 if last_volume < 100000000:
                     continue
                 code_ok = str(code)[-6:]
@@ -592,6 +602,6 @@ if __name__ == '__main__':
     update_packets()
     # 开始分析
     lg = bs.login()
-    # handle_results(analyze_A_ETF(p_period))
+    # handle_results(analyze_A_ETF('d'))
     handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
