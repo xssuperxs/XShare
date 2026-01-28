@@ -602,6 +602,5 @@ if __name__ == '__main__':
     update_packets()
     # 开始分析
     lg = bs.login()
-    # handle_results(analyze_A_ETF('d'))
     handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
