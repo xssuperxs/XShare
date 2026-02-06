@@ -369,8 +369,8 @@ def _get_klines_baostock(code, period, start_date, end_date):
 
 
 def _get_trade_dates(period):
-    pre101_week = datetime.date.today() - datetime.timedelta(weeks=102)
-    start_date = pre101_week.strftime('%Y-%m-%d')
+    today = datetime.date.today()
+    start_date = (today - datetime.timedelta(weeks=105)).strftime('%Y-%m-%d')
     rs = bs.query_history_k_data_plus(
         code='sh.000001',
         fields="date",  # 字段可调整
@@ -388,9 +388,9 @@ def _get_trade_dates(period):
     return start_date, end_date
 
 
-def _query_A_stock_codes_baostock(period):
+def _query_A_stock_codes_baostock():
     # 获取最后一个交易日
-    _, end_date = _get_trade_dates(period)
+    _, end_date = _get_trade_dates('d')
 
     # 查询A股的 股票 和指数 代码
     rs = bs.query_all_stock(day=end_date)
@@ -418,11 +418,10 @@ def _query_A_stock_codes_baostock(period):
 
 
 def analyze_A(period):
-    codes = _query_A_stock_codes_baostock(period)
+    codes = _query_A_stock_codes_baostock()
     if not codes:
         print("baostock 可能没有更新完成 稍后再试！")
         return []
-
     # 使用 tqdm 包装循环，并设置中文描述
     print("[INFO] Analyzing  A stocks and Index...")
     nError = 0
@@ -432,7 +431,6 @@ def analyze_A(period):
         try:
             # 提取历史K线信息
             df = _get_klines_baostock(code, period, start_date, end_date)
-            print(len(df))
             # 开始分析K线数据  破底翻
             if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
@@ -568,7 +566,6 @@ if __name__ == '__main__':
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
-    p_period = 'w'
     # 更新包
     update_packets()
     # 开始分析
