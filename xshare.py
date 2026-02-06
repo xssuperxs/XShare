@@ -351,11 +351,7 @@ def back_test(code, end_date, period='d'):
     return XShare.strategy_bottomUpFlip(df, period)
 
 
-def _get_klines_baostock(code, period='d'):
-    start_date, end_date = _get_trade_dates("%Y-%m-%d")
-
-    if period == 'w':
-        start_date = "2020-01-01"
+def _get_klines_baostock(code, start_date, end_date, period='d'):
     # 获取所有历史K线数据（从上市日期至今）
     rs = bs.query_history_k_data_plus(
         code=code,
@@ -380,9 +376,6 @@ def _get_klines_baostock(code, period='d'):
 
 
 def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
-    if period == 'w':
-        start_date = "19700101"
-
     _COL_MAPPING_AK = {
         "日期": "date",
         "开盘": "open",
@@ -470,10 +463,11 @@ def analyze_A(period='d'):
     print("[INFO] Analyzing  A stocks and Index...")
     nError = 0
     ret_results = []
+    start_date, end_date = _get_trade_dates(period)
     for code in tqdm(codes, desc="Progress"):
         try:
             # 提取历史K线信息
-            df = _get_klines_baostock(code, period)
+            df = _get_klines_baostock(code, start_date, end_date, period)
             # 开始分析K线数据  破底翻
             if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
