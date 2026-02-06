@@ -7,6 +7,7 @@ import pandas as pd
 import subprocess
 import sys
 from tqdm import tqdm
+import datetime
 
 
 class XShare:
@@ -339,19 +340,11 @@ class XShare:
 
 
 def back_test(code, end_date, period='d'):
-    """
-    测试用
-    :param period: 周期  d 日线  w 周线
-    :param code: 代码
-    :param end_date: 结束时间
-    :return: 失败False  成功 类型码
-    """
-    df = _get_klines_akshare(code, period, start_date='19700101', end_date=end_date)
-
+    df = _get_klines_baostock(code, period=period, start_date='19700101', end_date=end_date)
     return XShare.strategy_bottomUpFlip(df, period)
 
 
-def _get_klines_baostock(code, start_date, end_date, period='d'):
+def _get_klines_baostock(code, period, start_date, end_date):
     # 获取所有历史K线数据（从上市日期至今）
     rs = bs.query_history_k_data_plus(
         code=code,
@@ -375,53 +368,29 @@ def _get_klines_baostock(code, start_date, end_date, period='d'):
     return df
 
 
-def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date: str = "20500101"):
-    _COL_MAPPING_AK = {
-        "日期": "date",
-        "开盘": "open",
-        "最高": "high",
-        "最低": "low",
-        "收盘": "close",
-        "成交量": "volume",
-    }
-    v_period = 'daily' if period == 'd' else 'weekly'
-    df = ak.stock_zh_a_hist(symbol=code, period=v_period, adjust="qfq", start_date=start_date, end_date=end_date)
-    if df.empty:
-        return pd.DataFrame()
-    # 数据清洗
-    return df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
-
-
-def _get_trade_dates(period='d'):
-    df = ak.stock_zh_index_daily('sh000001')
-    if period == 'd':
-        start_date = df['date'].iloc[-102]
-        end_date = df['date'].iloc[-1]
-        return start_date, end_date
-
-    df['date'] = pd.to_datetime(df['date'])
-    df.set_index('date', inplace=True)
-
-    # 确保索引是datetime类型
-    if not pd.api.types.is_datetime64_any_dtype(df.index):
-        df.index = pd.to_datetime(df.index)
-    # 按周重采样
-    etf_hist_weekly = df.resample('W').agg({
-        'open': 'first',
-        'close': 'last',
-        'high': 'max',
-        'low': 'min',
-        'volume': 'sum',
-    })
-    w_df = etf_hist_weekly.dropna()
-    start_date = w_df['date'].iloc[-102]
-    end_date = w_df['date'].iloc[-1]
+def _get_trade_dates(period):
+    pre101_week = datetime.date.today() - datetime.timedelta(weeks=102)
+    start_date = pre101_week.strftime('%Y-%m-%d')
+    rs = bs.query_history_k_data_plus(
+        code='sh.000001',
+        fields="date",  # 字段可调整
+        start_date=start_date,  # 尽可能早的日期
+        end_date='2050-12-30',  # 未来日期确保覆盖最新数据
+        frequency=period,  # d=日线，w=周线，m=月线
+        adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
+    )
+    data_list = []
+    while (rs.error_code == '0') & rs.next():
+        data_list.append(rs.get_row_data())
+    df = pd.DataFrame(data_list, columns=rs.fields)
+    start_date = df['date'].iloc[-101]
+    end_date = df['date'].iloc[-1]
     return start_date, end_date
 
 
-def _query_A_stock_codes_baostock():
+def _query_A_stock_codes_baostock(period):
     # 获取最后一个交易日
-    _, end_date = _get_trade_dates('d')
+    _, end_date = _get_trade_dates(period)
 
     # 查询A股的 股票 和指数 代码
     rs = bs.query_all_stock(day=end_date)
@@ -448,13 +417,8 @@ def _query_A_stock_codes_baostock():
     return filtered_codes
 
 
-def analyze_A(period='d'):
-    """
-    分析 A股的 个股  和 指数
-    :param period:  d = 日K   w = 周K   m = 月K
-    :return:  返回A股股票 分析的结果
-    """
-    codes = _query_A_stock_codes_baostock()
+def analyze_A(period):
+    codes = _query_A_stock_codes_baostock(period)
     if not codes:
         print("baostock 可能没有更新完成 稍后再试！")
         return []
@@ -467,7 +431,8 @@ def analyze_A(period='d'):
     for code in tqdm(codes, desc="Progress"):
         try:
             # 提取历史K线信息
-            df = _get_klines_baostock(code, start_date, end_date, period)
+            df = _get_klines_baostock(code, period, start_date, end_date)
+            print(len(df))
             # 开始分析K线数据  破底翻
             if XShare.strategy_bottomUpFlip(df, period):
                 code = code.split(".")[-1]
@@ -603,6 +568,7 @@ if __name__ == '__main__':
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
+    p_period = 'w'
     # 更新包
     update_packets()
     # 开始分析

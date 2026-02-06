@@ -1,47 +1,23 @@
-# import akshare as ak
-# import pandas as pd
-# import baostock as bs
-# from datetime import datetime, timedelta
+import akshare as ak
+import pandas as pd
+import baostock as bs
+from datetime import datetime, timedelta
+
+# bs.login()
+# rs = bs.query_history_k_data_plus(
+#     code='sh.000001',
+#     fields="date",  # 字段可调整
+#     start_date='1988-01-01',  # 尽可能早的日期
+#     end_date='2050-12-31',  # 未来日期确保覆盖最新数据
+#     frequency='w',  # d=日线，w=周线，m=月线
+#     adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
+# )
+# data_list = []
+# while (rs.error_code == '0') & rs.next():
+#     data_list.append(rs.get_row_data())
 #
-#
-# def daily_to_weekly(etf_hist_daily):
-#     # 设置日期索引
-#     etf_hist_daily['date'] = pd.to_datetime(etf_hist_daily['date'])
-#     etf_hist_daily.set_index('date', inplace=True)
-#
-#     # 确保索引是datetime类型
-#     if not pd.api.types.is_datetime64_any_dtype(etf_hist_daily.index):
-#         etf_hist_daily.index = pd.to_datetime(etf_hist_daily.index)
-#
-#     # 按周重采样
-#     etf_hist_weekly = etf_hist_daily.resample('W').agg({
-#         'open': 'first',
-#         'close': 'last',
-#         'high': 'max',
-#         'low': 'min',
-#         'volume': 'sum',
-#     })
-#     # 删除NaN行
-#     return etf_hist_weekly.dropna()
-#
-#
-# df = ak.stock_zh_index_daily('sh000001')
-# w_df = daily_to_weekly(df)
-# print(daily_to_weekly(df))
-#
-#
-# weekly_df = df.resample('W-FRI').agg({
-#     'open': 'first',  # 周开盘价：周一的开盘价
-#     'high': 'max',  # 周最高价：一周内的最高价
-#     'low': 'min',  # 周最低价：一周内的最低价
-#     'close': 'last',  # 周收盘价：周五的收盘价
-# })
-#
-# start_date = df['date'].iloc[-105]
+# df = pd.DataFrame(data_list, columns=rs.fields)
+# start_date = df['date'].iloc[-102]
 # end_date = df['date'].iloc[-1]
 #
-# if end_date != '':
-#     last_trade_date = datetime.strptime(end_date, "%Y%m%d").date()
-# else:
-#
-#     last_trade_date = df['date'].iloc[-1]
+# bs.logout()
