@@ -7,8 +7,6 @@ import pandas as pd
 import subprocess
 import sys
 from tqdm import tqdm
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
 
 class XShare:
@@ -348,15 +346,13 @@ def back_test(code, end_date, period='d'):
     :param end_date: 结束时间
     :return: 失败False  成功 类型码
     """
-    start_date, _ = _get_last_trade_date("%Y%m%d", end_date)
-
-    df = _get_klines_akshare(code, period, start_date=start_date, end_date=end_date)
+    df = _get_klines_akshare(code, period, start_date='19700101', end_date=end_date)
 
     return XShare.strategy_bottomUpFlip(df, period)
 
 
 def _get_klines_baostock(code, period='d'):
-    start_date, end_date = _get_last_trade_date("%Y-%m-%d")
+    start_date, end_date = _get_trade_dates("%Y-%m-%d")
 
     if period == 'w':
         start_date = "2020-01-01"
@@ -403,23 +399,36 @@ def _get_klines_akshare(code, period='d', start_date: str = "19700101", end_date
     return df[list(_COL_MAPPING_AK.keys())].rename(columns=_COL_MAPPING_AK)
 
 
-def _get_last_trade_date(date_format='%Y%m%d', end_date=''):
-    if end_date != '':
-        last_trade_date = datetime.strptime(end_date, "%Y%m%d").date()
-    else:
-        df = ak.stock_zh_index_daily('sh000001')
-        last_trade_date = df['date'].iloc[-1]
+def _get_trade_dates(period='d'):
+    df = ak.stock_zh_index_daily('sh000001')
+    if period == 'd':
+        start_date = df['date'].iloc[-102]
+        end_date = df['date'].iloc[-1]
+        return start_date, end_date
 
-    # 取一年的K线足够用了
-    previous_year_date = last_trade_date - relativedelta(years=1)
-    start_date = previous_year_date.strftime(date_format)
-    end_date = last_trade_date.strftime(date_format)  # 输出 '20301230'
+    df['date'] = pd.to_datetime(df['date'])
+    df.set_index('date', inplace=True)
+
+    # 确保索引是datetime类型
+    if not pd.api.types.is_datetime64_any_dtype(df.index):
+        df.index = pd.to_datetime(df.index)
+    # 按周重采样
+    etf_hist_weekly = df.resample('W').agg({
+        'open': 'first',
+        'close': 'last',
+        'high': 'max',
+        'low': 'min',
+        'volume': 'sum',
+    })
+    w_df = etf_hist_weekly.dropna()
+    start_date = w_df['date'].iloc[-102]
+    end_date = w_df['date'].iloc[-1]
     return start_date, end_date
 
 
 def _query_A_stock_codes_baostock():
     # 获取最后一个交易日
-    _, end_date = _get_last_trade_date("%Y-%m-%d")
+    _, end_date = _get_trade_dates('d')
 
     # 查询A股的 股票 和指数 代码
     rs = bs.query_all_stock(day=end_date)
@@ -437,7 +446,13 @@ def _query_A_stock_codes_baostock():
         (~df_all_codes['code_name'].str.contains(r'ST|\*ST', case=False, na=False)) &
         (df_all_codes['tradeStatus'] == '1')
         ]
-    return df_filtered['code'].to_list()
+    code_list = df_filtered['code'].to_list()
+
+    # 过滤掉暂时不需要的代码
+    patterns = [".7", ".9", ".688", ".4"]
+    filtered_codes = [item for item in code_list if not any(pattern in item for pattern in patterns)]
+
+    return filtered_codes
 
 
 def analyze_A(period='d'):
@@ -451,15 +466,11 @@ def analyze_A(period='d'):
         print("baostock 可能没有更新完成 稍后再试！")
         return []
 
-    # 过滤掉暂时不需要的代码
-    patterns = [".7", ".9", ".688", ".4"]
-    filtered_codes = [item for item in codes if not any(pattern in item for pattern in patterns)]
-
     # 使用 tqdm 包装循环，并设置中文描述
     print("[INFO] Analyzing  A stocks and Index...")
     nError = 0
     ret_results = []
-    for code in tqdm(filtered_codes, desc="Progress"):
+    for code in tqdm(codes, desc="Progress"):
         try:
             # 提取历史K线信息
             df = _get_klines_baostock(code, period)
@@ -594,7 +605,7 @@ def handle_results(results):
 if __name__ == '__main__':
     test = False
     if test:
-        print(back_test('300606', '20251224', period='d'))
+        print(back_test('603172', '20251222', period='d'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)

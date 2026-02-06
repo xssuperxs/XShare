@@ -1,65 +1,47 @@
-import akshare as ak
-import pandas as pd
-import baostock as bs
-from datetime import datetime, timedelta
-
-lg = bs.login()
-rs = bs.query_all_stock('2026-01-05')
-
-# 提取股票代码到列表
-stock_codes = []
-while (rs.error_code == '0') & rs.next():
-    stock_codes.append(rs.get_row_data()[0])  # 股票代码通常在第一个位置
-
-print(f"共获取 {len(stock_codes)} 只股票")
-print("前10只股票代码:", stock_codes[:10])
-
-bs.logout()
-
-# def calculate_limit_up_price(prev_close, limit_rate=0.10):
-#     """
-#     计算涨停价
-#
-#     参数:
-#     prev_close: 前收盘价
-#     limit_rate: 涨跌幅限制（默认10%）
-#
-#     返回:
-#     float: 涨停价（四舍五入到0.01元）
-#     """
-#     limit_up = prev_close * (1 + limit_rate)
-#     return round(limit_up, 2)
-#
-#     (20.12, 22.13, 30.15)
+# import akshare as ak
+# import pandas as pd
+# import baostock as bs
+# from datetime import datetime, timedelta
 #
 #
-# print(calculate_limit_up_price(29.10))
-
-# A股ETF
-
-# 获取ETF
-# etf_spot = ak.fund_etf_spot_em()
-# etf_codes = etf_spot['代码'].tolist()
-# print(etf_codes)
-
-# def get_etf_klines(symbol: str, period: str):
-#     """
-#     :type symbol: 股票代码
-#     :param period: 周期 日 daily 周 weekly
-#     """
-#     if period == 'd':
-#         etf_hist_kline = ak.fund_etf_hist_sina(symbol=symbol)
-#     else:
-#         period = 'weekly'
-#         etf_hist_kline = ak.fund_etf_hist_em(symbol=symbol, period=period)
+# def daily_to_weekly(etf_hist_daily):
+#     # 设置日期索引
+#     etf_hist_daily['date'] = pd.to_datetime(etf_hist_daily['date'])
+#     etf_hist_daily.set_index('date', inplace=True)
 #
-#     if etf_hist_kline.empty or etf_hist_kline["high"].iloc[-1] > 50:
-#         return pd.DataFrame()
-#     return etf_hist_kline
-
+#     # 确保索引是datetime类型
+#     if not pd.api.types.is_datetime64_any_dtype(etf_hist_daily.index):
+#         etf_hist_daily.index = pd.to_datetime(etf_hist_daily.index)
 #
-# ak.fund_etf_hist_em()
-# print(etf_spot)
-# ak.fund_etf_hist_min_em()
-# ak.fund_etf_hist_sina()
-# # 港股ETF
+#     # 按周重采样
+#     etf_hist_weekly = etf_hist_daily.resample('W').agg({
+#         'open': 'first',
+#         'close': 'last',
+#         'high': 'max',
+#         'low': 'min',
+#         'volume': 'sum',
+#     })
+#     # 删除NaN行
+#     return etf_hist_weekly.dropna()
+#
+#
+# df = ak.stock_zh_index_daily('sh000001')
+# w_df = daily_to_weekly(df)
+# print(daily_to_weekly(df))
+#
+#
+# weekly_df = df.resample('W-FRI').agg({
+#     'open': 'first',  # 周开盘价：周一的开盘价
+#     'high': 'max',  # 周最高价：一周内的最高价
+#     'low': 'min',  # 周最低价：一周内的最低价
+#     'close': 'last',  # 周收盘价：周五的收盘价
+# })
+#
+# start_date = df['date'].iloc[-105]
+# end_date = df['date'].iloc[-1]
+#
+# if end_date != '':
+#     last_trade_date = datetime.strptime(end_date, "%Y%m%d").date()
+# else:
+#
+#     last_trade_date = df['date'].iloc[-1]
