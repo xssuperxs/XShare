@@ -12,7 +12,7 @@ import datetime
 
 class XShare:
     # 记录数
-    __RECORD_COUNT = 100
+    __RECORD_COUNT = 80
     # 创新低天数
     __NEW_LOW_DAYS = 18
 
@@ -370,7 +370,7 @@ def _get_klines_baostock(code, period, start_date, end_date):
 
 def _get_trade_dates(period):
     today = datetime.date.today()
-    start_date = (today - datetime.timedelta(weeks=105)).strftime('%Y-%m-%d')
+    start_date = (today - datetime.timedelta(weeks=103)).strftime('%Y-%m-%d')
     rs = bs.query_history_k_data_plus(
         code='sh.000001',
         fields="date",  # 字段可调整
