@@ -340,7 +340,7 @@ class XShare:
 
 
 def back_test(code, end_date, period='d'):
-    df = _get_klines_baostock(code, period=period, start_date='19700101', end_date=end_date)
+    df = _get_klines_baostock(code, period=period, start_date='1970-01-01', end_date=end_date)
     return XShare.strategy_bottomUpFlip(df, period)
 
 
@@ -560,15 +560,16 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
+    lg = bs.login()
     test = False
     if test:
-        print(back_test('603172', '20251222', period='d'))
+        print(back_test('sh.603172', '2025-12-22', period='d'))
+        bs.logout()
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
     # 更新包
     update_packets()
     # 开始分析
-    lg = bs.login()
     handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
     bs.logout()
