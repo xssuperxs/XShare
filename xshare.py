@@ -12,7 +12,7 @@ import datetime
 
 class XShare:
     # 记录数
-    __RECORD_COUNT = 80
+    __RECORD_COUNT = 90
     # 创新低天数
     __NEW_LOW_DAYS = 18
 
@@ -211,11 +211,10 @@ class XShare:
         :param period:  周期  d 日线  w 周线
         :return:  bool
         """
-        RECORD_COUNT = XShare.__RECORD_COUNT
         # K线小于100条记录 返回FALSE
-        if len(klines) < RECORD_COUNT or klines.empty:
+        if len(klines) < XShare.__RECORD_COUNT or klines.empty:
             return False
-        df_klines = klines.tail(100)
+        df_klines = klines.tail(XShare.__RECORD_COUNT)
         try:
             today_kline = df_klines.iloc[-1]
             pre_kline = df_klines.iloc[-2]
