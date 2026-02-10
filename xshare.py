@@ -248,7 +248,8 @@ class XShare:
                 if tmpLow < lowPrice:
                     lows_index.append(XShare.__RECORD_COUNT - 1)
                 # 确定前低  和 最低
-                lowPoints = list(reversed(lows_index))
+                # lowPoints = list(reversed(lows_index))
+                lowPoints = lows_index[::-1]  # 翻转list  ::-1  一般情况下更快
                 curLowIndex = -1
                 preLowIndex = -1
                 highIndex = -1
@@ -558,7 +559,7 @@ def handle_results(results):
 
 if __name__ == '__main__':
     lg = bs.login()
-    test = True
+    test = False
     if test:
         print(back_test('sh.603172', '2025-12-22', period='d'))
         bs.logout()
