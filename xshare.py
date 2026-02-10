@@ -160,22 +160,19 @@ class XShare:
         :param klines:
         :return:
         """
+        RECORD_COUNT = XShare.__RECORD_COUNT
         # K线小于100条记录 返回FALSE
-        if len(klines) < XShare.__RECORD_COUNT or klines.empty:
+        if len(klines) < RECORD_COUNT or klines.empty:
             return False
-        df_klines = klines.tail(XShare.__RECORD_COUNT)
+        df_klines = klines.tail(RECORD_COUNT)
         try:
             today_kline = df_klines.iloc[-1]
             pre_kline = df_klines.iloc[-2]
 
             today_high = today_kline['high']
             today_low = today_kline['low']
-            # today_open = today_kline['open']
             today_close = today_kline['close']
             today_vol = today_kline['volume']
-
-            # pre_high = pre_kline['high']
-            # pre_low = pre_kline['low']
             pre_open = pre_kline['open']
             pre_close = pre_kline['close']
             pre_vol = pre_kline['volume']
@@ -214,10 +211,11 @@ class XShare:
         :param period:  周期  d 日线  w 周线
         :return:  bool
         """
+        RECORD_COUNT = XShare.__RECORD_COUNT
         # K线小于100条记录 返回FALSE
-        if len(klines) < XShare.__RECORD_COUNT or klines.empty:
+        if len(klines) < RECORD_COUNT or klines.empty:
             return False
-        df_klines = klines.tail(XShare.__RECORD_COUNT)
+        df_klines = klines.tail(100)
         try:
             today_kline = df_klines.iloc[-1]
             pre_kline = df_klines.iloc[-2]
@@ -371,12 +369,11 @@ def _get_klines_baostock(code, period, start_date, end_date):
 def _get_trade_dates(period):
     today = datetime.date.today()
     start_date = (today - datetime.timedelta(weeks=103)).strftime('%Y-%m-%d')
-    end_date = today.strftime('%Y-%m-%d')
     rs = bs.query_history_k_data_plus(
         code='sh.000001',
         fields="date",  # 字段可调整
         start_date=start_date,  # 尽可能早的日期
-        end_date=end_date,  # 未来日期确保覆盖最新数据
+        end_date='2050-12-30',  # 未来日期确保覆盖最新数据
         frequency=period,  # d=日线，w=周线，m=月线
         adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
     )
@@ -562,7 +559,7 @@ def handle_results(results):
 
 if __name__ == '__main__':
     lg = bs.login()
-    test = False
+    test = True
     if test:
         print(back_test('sh.603172', '2025-12-22', period='d'))
         bs.logout()
