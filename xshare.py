@@ -211,26 +211,22 @@ class XShare:
         :param period:  周期  d 日线  w 周线
         :return:  bool
         """
-        # K线小于100条记录 返回FALSE
-        if len(klines) < XShare.__RECORD_COUNT or klines.empty:
+        # 早期返回条件
+        if klines.empty or len(klines) < XShare.__RECORD_COUNT:
             return False
         df_klines = klines.tail(XShare.__RECORD_COUNT)
         try:
-            today_kline = df_klines.iloc[-1]
-            pre_kline = df_klines.iloc[-2]
-
-            today_high = today_kline['high']
-            today_low = today_kline['low']
-            today_close = today_kline['close']
-            pre_high = pre_kline['high']
-            pre_low = pre_kline['low']
-
-            if pre_high > today_high:
+            # ============ 1. 基础条件检查 ============
+            today, yesterday = df_klines.iloc[-1], df_klines.iloc[-2]
+            # 昨日高点不能高于今日高点（今日需突破）
+            if yesterday['high'] > today['high']:
                 return False
-            # 滑动窗口大小
-            window_size = [2, 3]
+            today_high = today['high']
+            today_low = today['low']
+            today_close = today['close']
+            pre_low = yesterday['low']
 
-            for n in window_size:
+            for n in [2, 3]:
                 # 获取波段的 高低点
                 highs_index, lows_index = XShare.__getWavePoints(df_klines, n, 'high', 'low')
 
@@ -559,9 +555,9 @@ def handle_results(results):
 
 if __name__ == '__main__':
     lg = bs.login()
-    test = False
+    test = True
     if test:
-        print(back_test('sh.603172', '2025-12-22', period='d'))
+        print(back_test('sh.605006', '2025-12-24', period='d'))
         bs.logout()
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
