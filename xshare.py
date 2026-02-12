@@ -289,7 +289,9 @@ class XShare:
                 sub_high_price = sub_check_high['high'].max()
                 if sub_high_price != highPrice:
                     continue
-
+                # 周线直接返回TRUE
+                if period == 'w':
+                    return True
                 # MACD
                 # new_series = pd.Series(list(df_klines['close']))
                 new_series = pd.Series(list(df_klines['close']) + [today_close] + [today_close])
@@ -299,24 +301,6 @@ class XShare:
                 last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
                 if last_MACD < 0:
                     continue
-                if period == 'w':
-                    return True
-                # 判断是否出现过涨停板
-                # close_prices = tuple(klines['close'].tolist())
-                # is_limit_up = False
-                # for i in range(1, len(close_prices)):
-                #     prev_price = close_prices[i - 1]
-                #     current_price = close_prices[i]
-                #
-                #     # 计算涨停价（10%限制）
-                #     limit_up_price = round(prev_price * 1.10, 2)
-                #
-                #     # 判断是否为涨停
-                #     if current_price >= limit_up_price:
-                #         is_limit_up = True
-                #         break
-                # if not is_limit_up:
-                #     continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - XShare.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
@@ -555,7 +539,7 @@ def handle_results(results):
 
 if __name__ == '__main__':
     lg = bs.login()
-    test = True
+    test = False
     if test:
         print(back_test('sh.605006', '2025-12-24', period='d'))
         bs.logout()
