@@ -1,4 +1,3 @@
-import akshare as ak
 import baostock as bs
 from collections import Counter
 
@@ -366,42 +365,30 @@ def _get_trade_dates(period):
     return start_date, end_date
 
 
-def _query_A_stock_codes_baostock():
-    # 获取最后一个交易日
-    _, end_date = _get_trade_dates('d')
-
-    # 查询A股的 股票 和指数 代码
-    rs = bs.query_all_stock(day=end_date)
-
-    data_list = []
-    while (rs.error_code == '0') & rs.next():
-        # 获取一条记录，将记录合并在一起
-        data_list.append(rs.get_row_data())
-    df_all_codes = pd.DataFrame(data_list, columns=rs.fields)
-    if df_all_codes.empty:
-        return []
-
-    # 过滤掉ST 和 没交易的
-    df_filtered = df_all_codes[
-        (~df_all_codes['code_name'].str.contains(r'ST|\*ST', case=False, na=False)) &
-        (df_all_codes['tradeStatus'] == '1')
+def _get_stock_codes():
+    print("[INFO] Fetching stock codes...")
+    stock_list = bs.query_stock_basic()
+    stock_df = stock_list.get_data()
+    filtered_stocks = stock_df[
+        (stock_df['type'].isin(['1', '5'])) &  # 1 是股票  5 是ETF
+        (stock_df['status'] == '1') &  # 在交易
+        (~stock_df['code_name'].str.contains('ST|\\*ST|退|警示|终止上市', na=False))  # 排除ST股和问题股
         ]
-    code_list = df_filtered['code'].to_list()
-
+    # 获取股票代码列表
+    code_list = filtered_stocks['code'].tolist()
     # 过滤掉暂时不需要的代码
     patterns = [".7", ".9", ".688", ".4"]
-    filtered_codes = [item for item in code_list if not any(pattern in item for pattern in patterns)]
-
-    return filtered_codes
+    ret_cods = [item for item in code_list if not any(pattern in item for pattern in patterns)]
+    return ret_cods
 
 
 def analyze_A(period):
-    codes = _query_A_stock_codes_baostock()
+    codes = _get_stock_codes()
     if not codes:
         print("baostock 可能没有更新完成 稍后再试！")
         return []
     # 使用 tqdm 包装循环，并设置中文描述
-    print("[INFO] Analyzing  A stocks and Index...")
+    print("[INFO] Analyzing  A stocks and ETF...")
     nError = 0
     ret_results = []
     start_date, end_date = _get_trade_dates(period)
@@ -428,81 +415,15 @@ def analyze_A(period):
     return ret_results
 
 
-def daily_to_weekly(etf_hist_daily):
-    # 设置日期索引
-    etf_hist_daily['date'] = pd.to_datetime(etf_hist_daily['date'])
-    etf_hist_daily.set_index('date', inplace=True)
-
-    # 确保索引是datetime类型
-    if not pd.api.types.is_datetime64_any_dtype(etf_hist_daily.index):
-        etf_hist_daily.index = pd.to_datetime(etf_hist_daily.index)
-
-    # 按周重采样
-    etf_hist_weekly = etf_hist_daily.resample('W').agg({
-        'open': 'first',
-        'close': 'last',
-        'high': 'max',
-        'low': 'min',
-        'volume': 'sum',
-        'amount': 'sum'
-    })
-    # 删除NaN行
-    return etf_hist_weekly.dropna()
-
-
-def get_etf_klines(symbol: str, period: str):
-    """
-    :type symbol: 股票代码
-    :param period: 周期 日 daily 周 weekly
-    """
-    if period == 'd':
-        etf_hist_kline = ak.fund_etf_hist_sina(symbol)
-    else:
-        etf_hist_kline = daily_to_weekly(ak.fund_etf_hist_sina(symbol))
-
-    if etf_hist_kline.empty or etf_hist_kline['high'].iloc[-1] > 50:
-        return pd.DataFrame()
-    return etf_hist_kline
-
-
-def analyze_A_ETF(period: str = 'd'):
-    ret_results = []
-    # 获取 ETF 代码
-    etf_spot = ak.fund_etf_category_sina(symbol="ETF基金")
-    codes = etf_spot['代码'].to_list()
-    print("[INFO] Analyzing  A ETF...")
-    nError = 0
-    for code in tqdm(codes, desc="Progress"):
-        try:
-            hist_df = get_etf_klines(code, period)
-            if hist_df.empty:
-                continue
-            if XShare.strategy_bottomUpFlip(hist_df, period=period):
-                # 判断下ETF 成交额
-                last_amount = hist_df['amount'].iloc[-1]
-                if last_amount < 100000000:
-                    continue
-                code_ok = str(code)[-6:]
-                ret_results.append(code_ok)
-        except Exception as e:
-            nError += 1
-            if nError == 1:
-                print(f"ETF  Error = : {e}")
-            continue
-    if nError > 1:
-        print("ETF error count:" + str(nError))
-    return ret_results
-
-
 def update_packets():
     """
     更新需要的库（pip、akshare、baostock），并显示进度条
     :return: None
     """
+    # {"name": "akshare", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "akshare"]},
     # 需要更新的包列表
     packages = [
         {"name": "pip", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "pip"]},
-        {"name": "akshare", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "akshare"]},
         {"name": "baostock", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "baostock"]}
     ]
     print("[INFO] Updating required packages...")
@@ -549,5 +470,5 @@ if __name__ == '__main__':
     # 更新包
     update_packets()
     # 开始分析
-    handle_results(analyze_A(p_period) + analyze_A_ETF(p_period))
+    handle_results(analyze_A(p_period))
     bs.logout()
