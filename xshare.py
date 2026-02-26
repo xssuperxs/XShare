@@ -292,9 +292,9 @@ class XShare:
                 if period == 'w':
                     return True
                 # MACD
-                # new_series = pd.Series(list(df_klines['close']))
-                new_series = pd.Series(list(df_klines['close']) + [today_close] + [today_close])
-                macd_info = MACD(close=new_series, window_fast=12, window_slow=26, window_sign=9)
+                close_prices = pd.Series(list(df_klines['close']))
+                # new_series = pd.Series(list(df_klines['close']) + [today_close] + [today_close])
+                macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
                 # last_DIF = macd_info.macd().iloc[-1]  # 快线
                 # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
                 last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
@@ -370,7 +370,7 @@ def _get_stock_codes():
     stock_list = bs.query_stock_basic()
     stock_df = stock_list.get_data()
     filtered_stocks = stock_df[
-        (stock_df['type'].isin(['1', '5'])) &  # 1 是股票  5 是ETF
+        (stock_df['type'].isin(['1', '2'])) &  # 1 是股票  5 是ETF  2是指数
         (stock_df['status'] == '1') &  # 在交易
         (~stock_df['code_name'].str.contains('ST|\\*ST|退|警示|终止上市', na=False))  # 排除ST股和问题股
         ]
@@ -420,7 +420,6 @@ def update_packets():
     更新需要的库（pip、akshare、baostock），并显示进度条
     :return: None
     """
-    # {"name": "akshare", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "akshare"]},
     # 需要更新的包列表
     packages = [
         {"name": "pip", "command": [sys.executable, "-m", "pip", "install", "--upgrade", "pip"]},
@@ -442,8 +441,6 @@ def update_packets():
                 tqdm.write(f"[ERROR] Failed to update {package['name']}: {e}")
             except Exception as e:
                 tqdm.write(f"[ERROR] Unexpected error with {package['name']}: {e}")
-
-    # print("[INFO] All packages updated successfully!")
 
 
 def handle_results(results):
