@@ -4,6 +4,12 @@ import pandas as pd
 
 
 class KlinesAnalyzer:
+    """
+     K线分析类
+    主要分析是K线形态 是不是符合 破底翻
+    分析K线 形态 是否为阴线
+    分析K线 形态 是否为仙人指路
+    """
     # 记录数
     __RECORD_COUNT = 90
     # 创新低天数
@@ -79,7 +85,7 @@ class KlinesAnalyzer:
         pass
 
     @staticmethod
-    def kline_rally_fade(kline: pd.DataFrame, min_shadow_ratio=0.4) -> bool:
+    def check_high_to_low(kline: pd.DataFrame, min_shadow_ratio=0.4) -> bool:
         """
         判断K线是否是冲高回落
         :param kline:
@@ -305,6 +311,3 @@ class KlinesAnalyzer:
             print(f"发生未知错误: {e}")
             return False
         return False
-
-
-
