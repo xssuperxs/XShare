@@ -202,9 +202,9 @@ class KlinesAnalyzer:
         return True
 
     @staticmethod
-    def strategy_bottomUpFlip(klines: pd.DataFrame, period='d') -> bool:
+    def check_pass_peak(klines: pd.DataFrame, period='d') -> bool:
         """
-        破低翻
+        破低翻  过波段高点  头肩底
         "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
         :param klines:  最近 N天的交易记录 要保证传进来的K线数据大于100条  不大也没事
         :param period:  周期  d 日线  w 周线

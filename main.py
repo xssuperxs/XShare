@@ -35,18 +35,18 @@ from datetime import datetime, timedelta
 # 登录baostock
 lg = bs.login()
 
-# stock_list = bs.query_stock_basic()
-# stock_df = stock_list.get_data()
-# filtered_stocks = stock_df[
-#     (stock_df['type'].isin(['1', '5'])) &  # type为1或5 1 是股票  5 是ETF
-#     (stock_df['status'] == '1') &  # 在交易
-#     (~stock_df['code_name'].str.contains('ST|\\*ST|退|警示|终止上市', na=False))  # 排除ST股和问题股
-# ]
-#
+stock_list = bs.query_stock_basic()
+stock_df = stock_list.get_data()
+filtered_stocks = stock_df[
+    (stock_df['type'].isin(['1', '5'])) &  # type为1或5 1 是股票  5 是ETF
+    (stock_df['status'] == '1') &  # 在交易
+    (~stock_df['code_name'].str.contains('ST|\\*ST|退|警示|终止上市', na=False))  # 排除ST股和问题股
+]
+
 # # 获取股票代码列表
 # codes_only = filtered_stocks['code'].tolist()
 
-print(len(codes_only))
-print(len(stock_df))
+# print(len(codes_only))
+# print(len(stock_df))
 # 获取股票信息
 # 获取全部A股股票，status：上市状态，'1'表示上市

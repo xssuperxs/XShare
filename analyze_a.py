@@ -9,7 +9,7 @@ import datetime
 
 def back_test(code, end_date, period='d'):
     df = _get_klines_baostock(code, period=period, start_date='1970-01-01', end_date=end_date)
-    return ka.strategy_bottomUpFlip(df, period)
+    return ka.check_pass_peak(df, period)
 
 
 def _get_klines_baostock(code, period, start_date, end_date):
@@ -88,7 +88,7 @@ def analyze_A(period):
             # 提取历史K线信息
             df = _get_klines_baostock(code, period, start_date, end_date)
             # 开始分析K线数据  破底翻
-            if ka.strategy_bottomUpFlip(df, period):
+            if ka.check_pass_peak(df, period):
                 code = code.split(".")[-1]
                 ret_results.append(code)
             # 前一根阴 首阳
