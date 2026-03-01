@@ -37,23 +37,19 @@ class XBaoStock:
             print(f"连接异常：{e}")
             return False
 
-
-
-
     @classmethod
     def logout(cls) -> None:
         """
         类方法：断开连接
         """
-        with cls._lock:
-            if cls._is_connected:
-                try:
-                    bs.logout()
-                except Exception as e:
-                    print(f"断开连接异常：{e}")
-                finally:
-                    cls._connection = None
-                    cls._is_connected = False
+        if cls._is_connected:
+            try:
+                bs.logout()
+            except Exception as e:
+                print(f"断开连接异常：{e}")
+            finally:
+                cls._connection = None
+                cls._is_connected = False
 
     @classmethod
     def ensure_connection(cls) -> bool:
@@ -141,6 +137,3 @@ class XBaoStock:
         except Exception as e:
             print(f"获取数据异常：{e}")
             return None
-
-
-
