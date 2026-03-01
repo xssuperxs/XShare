@@ -74,7 +74,6 @@ class XBaoStock:
         :param code_type:  获取需要类型的股票 代码  1是股票 2是代码 5是ETF  4是转债
         :return: 返回提取的股票代码  带有sh.600519  sz.000353 这样格式的list
         """
-        print("[INFO] Fetching stock codes...")
         stock_list = bs.query_stock_basic()
         stock_df = stock_list.get_data()
         filtered_stocks = stock_df[
