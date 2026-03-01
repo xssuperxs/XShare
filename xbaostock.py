@@ -14,8 +14,6 @@ class XBaoStock:
     # 类变量：所有实例共享
     _connection = None
     _is_connected = False
-    _last_connect_time = 0
-    _lock = threading.Lock()  # 线程锁，保证线程安全
 
     @classmethod
     def login(cls) -> bool:
@@ -28,7 +26,6 @@ class XBaoStock:
             if lg.error_code == '0':
                 cls._connection = lg
                 cls._is_connected = True
-                cls._last_connect_time = time.time()
                 return True
             else:
                 print(f"连接失败：{lg.error_msg}")
@@ -50,16 +47,6 @@ class XBaoStock:
             finally:
                 cls._connection = None
                 cls._is_connected = False
-
-    @classmethod
-    def ensure_connection(cls) -> bool:
-        """
-        类方法：确保连接已建立
-        如果未连接，自动连接
-        """
-        if not cls._is_connected:
-            return cls.login()
-        return True
 
     @classmethod
     def get_trade_dates(cls, period: str = 'd') -> tuple[str, str]:
