@@ -1,6 +1,6 @@
 import akshare as ak
 import pandas as pd
-import baostock as bs
+import xbaostock as bs
 from datetime import datetime, timedelta
 
 # 接口名称	核心特点与适用人群	主要数据范围	获取方式/费用
