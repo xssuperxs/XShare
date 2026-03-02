@@ -202,33 +202,33 @@ class KlinesAnalyzer:
         return True
 
     @staticmethod
-    def check_pass_peak(klines: pd.DataFrame, period='d') -> bool:
+    def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
         """
         破低翻  过波段高点  头肩底
         "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
-        :param klines:  最近 N天的交易记录 要保证传进来的K线数据大于100条  不大也没事
+        :param klines:  要分析的K线数据
         :param period:  周期  d 日线  w 周线
-        :return:  bool
+        :return:  不匹配返回空列表  匹配返回  list [low,high, rcnt]  low 前波段低点  high 前波段高点   rcnt 前波段高点 到 分析当天的红柱数量
         """
         # 早期返回条件
         if klines.empty or len(klines) < KlinesAnalyzer.__RECORD_COUNT:
-            return False
+            return []
         df_klines = klines.tail(KlinesAnalyzer.__RECORD_COUNT)
         try:
             # ============ 1. 基础条件检查 ============
             today, yesterday = df_klines.iloc[-1], df_klines.iloc[-2]
             # 昨日高点不能高于今日高点（今日需突破）
             if yesterday['high'] > today['high']:
-                return False
+                return []
             today_high = today['high']
             today_low = today['low']
-            today_close = today['close']
             pre_low = yesterday['low']
 
             for n in [2, 3]:
                 # 获取波段的 高低点
                 highs_index, lows_index = KlinesAnalyzer.__getWavePoints(df_klines, n, 'high', 'low')
 
+                # 波段数量小于3
                 if len(lows_index) < 3 or len(highs_index) < 3:
                     continue
 
@@ -242,8 +242,8 @@ class KlinesAnalyzer:
                 tmpLow = min(today_low, pre_low)
                 if tmpLow < lowPrice:
                     lows_index.append(KlinesAnalyzer.__RECORD_COUNT - 1)
+
                 # 确定前低  和 最低
-                # lowPoints = list(reversed(lows_index))
                 lowPoints = lows_index[::-1]  # 翻转list  ::-1  一般情况下更快
                 curLowIndex = -1
                 preLowIndex = -1
@@ -288,26 +288,30 @@ class KlinesAnalyzer:
                 sub_high_price = sub_check_high['high'].max()
                 if sub_high_price != highPrice:
                     continue
+
+                # 统计MACD 红柱的数量
+                close_prices = pd.Series(list(df_klines['close']))
+                macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
+                # 计算从highIndex到昨天的MACD大于0的个数
+                macd_values = macd_info.macd_diff()
+                macd_slice = macd_values.iloc[highIndex:]  # 从highIndex到昨天（不包括今天）
+
+                # 统计MACD大于0的天数
+                macd_positive_count = (macd_slice > 0).sum()
+
                 # 周线直接返回TRUE
                 if period == 'w':
-                    return True
-                # MACD
-                close_prices = pd.Series(list(df_klines['close']))
-                # new_series = pd.Series(list(df_klines['close']) + [today_close] + [today_close])
-                macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
-                # last_DIF = macd_info.macd().iloc[-1]  # 快线
-                # last_DEA = macd_info.macd_signal().iloc[-1]  # 慢线
-                last_MACD = macd_info.macd_diff().iloc[-1]  # MACD 值 红绿柱
-                if last_MACD < 0:
+                    return [curLowPrice, highPrice, macd_positive_count]
+                if macd_positive_count < 0:
                     continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - KlinesAnalyzer.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
                 lowPrice = df_klines.iloc[curLowIndex]['low']
                 if lowPrice <= n_day_low_price:
-                    return True
+                    return [lowPrice, highPrice, macd_positive_count]
         except Exception as e:
             # 处理其他异常
             print(f"发生未知错误: {e}")
-            return False
-        return False
+            return []
+        return []

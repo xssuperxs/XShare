@@ -50,16 +50,14 @@ def update_packets():
                 text=True,
                 check=True,
             )
-        except subprocess.CalledProcessError as e:
-            print(f"update_packets 错误: {e.stderr}")
         except Exception as e:
             print(f"update_packets 执行出错: {e}")
 
 
 if __name__ == '__main__':
     # 先更新需要的包
-    xbs.login()
     update_packets()
+    xbs.login()
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     analyze_A_stocks(p_period)
     xbs.logout()
