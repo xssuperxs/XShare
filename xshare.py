@@ -299,7 +299,7 @@ class KlinesAnalyzer:
                 # 统计MACD大于0的天数
                 macd_positive_count = (macd_slice > 0).sum()
 
-                # 周线直接返回TRUE
+                # 周线直接返回
                 if period == 'w':
                     return [curLowPrice, highPrice, macd_positive_count]
                 if macd_positive_count < 0:
@@ -312,6 +312,6 @@ class KlinesAnalyzer:
                     return [lowPrice, highPrice, macd_positive_count]
         except Exception as e:
             # 处理其他异常
-            print(f"发生未知错误: {e}")
+            print(f"check_pass_peak err: {e}")
             return []
         return []
