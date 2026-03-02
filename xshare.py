@@ -1,6 +1,8 @@
 from collections import Counter
 from ta.trend import MACD
 import pandas as pd
+import numpy as np
+from collections import Counter
 
 
 class KlinesAnalyzer:
@@ -15,63 +17,50 @@ class KlinesAnalyzer:
     __NEW_LOW_DAYS = 18
 
     @staticmethod
-    def __extractFrequentElements(input_list: list, nCount: int) -> list:
-        """
-        提取波段的高低点
-        :param input_list: high or low  list
-        :param nCount: 滑动窗口
-        :return: 提取好的 list
-        """
-        count_dict = Counter(input_list)
-        # 筛选出出现次数大于3的元素
-        filtered_elements = [element for element, count in count_dict.items() if count >= nCount]
-        return filtered_elements
-
-    @staticmethod
     def __getWavePoints(records, window_size, high_flag, low_flag):
         """
-        计算波段的高低点
-        :param records:  要计算的记录
-        :param window_size: 滑动窗口
-        :param high_flag:  最高价 字段的 名称
-        :param low_flag:   最低价 字段的 名称
-        :return:
-        """
+           计算波段的高低点
+           :param records: 要计算的记录（DataFrame）
+           :param window_size: 滑动窗口大小
+           :param high_flag: 最高价字段名
+           :param low_flag: 最低价字段名
+           :return: (高点索引列表, 低点索引列表)
+           """
+        # 直接使用原始顺序，避免反转
+        highs = records[high_flag].values
+        lows = records[low_flag].values
+        n_records = len(highs)
+
+        # 预分配列表以提高性能
         window_highs_index = []
         window_lows_index = []
 
-        highs = records[high_flag].to_list()
-        lows = records[low_flag].to_list()
-
-        highs = highs[::-1]
-        lows = lows[::-1]
-
-        for i in range(len(highs) - window_size + 1):
+        # 使用numpy的argmax/argmin提高性能
+        for i in range(n_records - window_size + 1):
             # 获取当前窗口的数据
             window_high = highs[i:i + window_size]
             window_low = lows[i:i + window_size]
 
-            # 计算窗口内的最高点和最低点的索引
-            high_index = window_high.index(max(window_high)) + i
-            low_index = window_low.index(min(window_low)) + i
+            # 使用argmax和argmin获取相对索引，然后转换为全局索引
+            high_rel_index = np.argmax(window_high)
+            low_rel_index = np.argmin(window_low)
 
-            # 保存结果
-            window_highs_index.append(high_index)
-            window_lows_index.append(low_index)
+            window_highs_index.append(i + high_rel_index)
+            window_lows_index.append(i + low_rel_index)
 
-        wave_highs_index = KlinesAnalyzer.__extractFrequentElements(window_highs_index, window_size)
-        wave_lows_index = KlinesAnalyzer.__extractFrequentElements(window_lows_index, window_size)
+        # 筛选出现次数达到窗口大小的索引
+        high_counter = Counter(window_highs_index)
+        low_counter = Counter(window_lows_index)
 
-        # 再把计算结果反转过来
-        for i in range(len(wave_highs_index)):
-            wave_highs_index[i] = KlinesAnalyzer.__RECORD_COUNT - wave_highs_index[i] - 1
+        # 直接筛选，无需反转
+        wave_highs = [idx for idx, count in high_counter.items() if count >= window_size]
+        wave_lows = [idx for idx, count in low_counter.items() if count >= window_size]
 
-        for i in range(len(wave_lows_index)):
-            wave_lows_index[i] = KlinesAnalyzer.__RECORD_COUNT - wave_lows_index[i] - 1
+        # 按索引排序（确保返回的索引是升序）
+        wave_highs.sort()
+        wave_lows.sort()
 
-        wave_highs_index = wave_highs_index[::-1]
-        wave_lows_index = wave_lows_index[::-1]
-        return wave_highs_index, wave_lows_index
+        return wave_highs, wave_lows
 
     @staticmethod
     def check_real_bearish(kline: pd.DataFrame, min_decline=0.02, entity_ratio=0.8) -> bool:
