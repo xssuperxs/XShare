@@ -5,10 +5,9 @@ import pandas as pd
 
 class KlinesAnalyzer:
     """
-     K线分析类
-    主要分析是K线形态 是不是符合 破底翻
-    分析K线 形态 是否为阴线
-    分析K线 形态 是否为仙人指路
+    主要分析是K线形态 是不是符合 过前高     check_pass_peak
+    分析K线 形态 是否为阴线               check_real_bearish
+    分析K线 形态 是否为仙人指路            check_highToLow
     """
     # 记录数
     __RECORD_COUNT = 90
@@ -75,55 +74,7 @@ class KlinesAnalyzer:
         return wave_highs_index, wave_lows_index
 
     @staticmethod
-    def strategy_newHigh(klines: pd.DataFrame, period='d') -> bool:
-        """
-        缩量突破
-        :param klines:
-        :param period:
-        :return:
-        """
-        pass
-
-    @staticmethod
-    def check_high_to_low(kline: pd.DataFrame, min_shadow_ratio=0.4) -> bool:
-        """
-        判断K线是否是冲高回落
-        :param kline:
-        :param min_shadow_ratio: 上阴线的占比 最少
-        :return:
-        """
-        low = kline['low']
-        high = kline['high']
-        close = kline['close']
-        open = kline['open']
-
-        # 计算实体和影线
-        entity_high = max(open, close)
-        # entity_low = min(open, close)
-
-        upper_shadow = high - entity_high  # 获取上限线的长度
-        # lower_shadow = entity_low - low  # 获取下阴线的长度
-        total_range = high - low  # K线最高 到 最低的范围
-
-        # 避免除零错误
-        if total_range == 0:
-            return False
-
-        # 计算各种比例
-        upper_shadow_ratio = upper_shadow / total_range  # 上阴线的比例
-        close_position = (close - low) / total_range  # 收盘价在K线中的位置
-
-        # 冲高回落判断条件
-        conditions = [
-            upper_shadow_ratio >= min_shadow_ratio,  # 上影线足够长
-            close_position <= 0.5,  # 收盘价在下半部分
-            # high > open * 1.01,  # 最高点明显高于开盘价(至少1%)
-            # close < high * 0.98  # 收盘价明显低于最高点(至少回落2%)
-        ]
-        return all(conditions)
-
-    @staticmethod
-    def kline_solid_bearish_candle(kline: pd.DataFrame, min_decline=0.02, entity_ratio=0.8) -> bool:
+    def check_real_bearish(kline: pd.DataFrame, min_decline=0.02, entity_ratio=0.8) -> bool:
         """
         检测 K线是否为实体阴线
         :param kline:
@@ -153,9 +104,9 @@ class KlinesAnalyzer:
         return actual_entity_ratio >= entity_ratio
 
     @staticmethod
-    def strategy_highToLow(klines: pd.DataFrame) -> bool:
+    def check_highToLow(klines: pd.DataFrame) -> bool:
         """
-        低部冲高回落
+        部冲高回落  仙人指路
         :param klines:
         :return:
         """
