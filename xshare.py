@@ -207,16 +207,16 @@ class KlinesAnalyzer:
                 # 判断破底翻
                 if curLowPrice > preLowPrice:
                     continue
-
+                # 前波段高点
                 highPrice = df_klines.iloc[highIndex]['high']
                 # 判断过前波段高点
                 if today_high < highPrice:
                     continue
 
                 # 判断前面波段的高点到昨天是最高点
-                sub_check_high = df_klines.iloc[highIndex: KlinesAnalyzer.__RECORD_COUNT - 1]
+                sub_check_high = df_klines.iloc[highIndex + 1: KlinesAnalyzer.__RECORD_COUNT - 1]
                 sub_high_price = sub_check_high['high'].max()
-                if sub_high_price != highPrice:
+                if highPrice <= sub_high_price:
                     continue
 
                 # 统计MACD 红柱的数量
@@ -231,7 +231,9 @@ class KlinesAnalyzer:
 
                 # 周线直接返回
                 if period == 'w':
-                    return [curLowPrice, highPrice, macd_positive_count]
+                    return [float(curLowPrice), float(highPrice), int(macd_positive_count)]
+                    # retList = [curLowPrice, highPrice, macd_positive_count] if macd_positive_count > 0 else []
+                    # return retList
                 if macd_values.iloc[-1] < 0:
                     continue
                 # 获取创新低的天数
@@ -239,7 +241,7 @@ class KlinesAnalyzer:
                 n_day_low_price = sub_check_low['low'].min()
                 lowPrice = df_klines.iloc[curLowIndex]['low']
                 if lowPrice <= n_day_low_price:
-                    return [lowPrice, highPrice, macd_positive_count]
+                    return [float(lowPrice), float(highPrice), int(macd_positive_count)]
         except Exception as e:
             # 处理其他异常
             print(f"check_pass_peak err: {e}")

@@ -2,6 +2,7 @@ from xshare import KlinesAnalyzer as ka
 from xbaostock import XBaoStock as xbs
 import subprocess
 import sys
+import sqlite3
 
 
 def analyze_A_stocks(period):
@@ -15,10 +16,13 @@ def analyze_A_stocks(period):
         try:
             # 提取历史K线信息
             df = xbs.get_stock_hist(code, period, start_date, end_date)
+            ret_list = ka.check_pass_peak(df, period)
             # 开始分析K线数据  破底翻
-            if ka.check_pass_peak(df, period):
-                code = code.split(".")[-1]
-                ret_results.append(code)
+            if ret_list:
+                ret_list.insert(0, code)
+                ret_list.insert(3, end_date)
+                ret_list.insert(4, period)
+                ret_results.append(ret_list)
         except Exception as e:
             nError += 1
             if nError == 1:
@@ -26,8 +30,20 @@ def analyze_A_stocks(period):
             continue
     if nError > 1:
         print("analyze_A error count:" + str(nError))
+    # 把数据写到数据库中
 
-    return ret_results
+    conn = sqlite3.connect('/root/work/data/xshare.db')
+
+    cursor = conn.cursor()
+
+    for data in ret_results:
+        cursor.execute('''
+            INSERT OR REPLACE INTO xshare.db 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', data)
+
+    conn.commit()
+    conn.close()
 
 
 def update_packets():
@@ -61,4 +77,3 @@ if __name__ == '__main__':
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     analyze_A_stocks(p_period)
     xbs.logout()
-

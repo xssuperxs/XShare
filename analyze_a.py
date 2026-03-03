@@ -94,9 +94,9 @@ def handle_results(results):
 
 if __name__ == '__main__':
     xbs.login()
-    test = True
+    test = False
     if test:
-        print(back_test('sz.300627', '2025-12-08', period='d'))
+        print(back_test('sz.002061', '2026-03-02', period='d'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
