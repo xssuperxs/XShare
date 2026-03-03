@@ -232,7 +232,7 @@ class KlinesAnalyzer:
                 # 周线直接返回
                 if period == 'w':
                     return [curLowPrice, highPrice, macd_positive_count]
-                if macd_positive_count < 0:
+                if macd_values.iloc[-1] < 0:
                     continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - KlinesAnalyzer.__NEW_LOW_DAYS: curLowIndex]
@@ -245,4 +245,3 @@ class KlinesAnalyzer:
             print(f"check_pass_peak err: {e}")
             return []
         return []
-
