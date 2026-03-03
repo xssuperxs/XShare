@@ -1,8 +1,8 @@
-from collections import Counter
 from ta.trend import MACD
 import pandas as pd
 import numpy as np
-from collections import Counter
+from numpy.lib.stride_tricks import sliding_window_view
+from numba import jit
 
 
 class KlinesAnalyzer:
@@ -19,46 +19,36 @@ class KlinesAnalyzer:
     @staticmethod
     def __getWavePoints(records, window_size, high_flag, low_flag):
         """
-           计算波段的高低点
-           :param records: 要计算的记录（DataFrame）
-           :param window_size: 滑动窗口大小
-           :param high_flag: 最高价字段名
-           :param low_flag: 最低价字段名
-           :return: (高点索引列表, 低点索引列表)
-           """
-        # 直接使用原始顺序，避免反转
+           完全向量化的卷积思想实现
+           使用滑动窗口视图和广播机制
+        """
+
         highs = records[high_flag].values
         lows = records[low_flag].values
         n_records = len(highs)
 
-        # 预分配列表以提高性能
-        window_highs_index = []
-        window_lows_index = []
+        # 创建滑动窗口视图（不复制数据，只是视图）
+        high_windows = sliding_window_view(highs, window_size)
+        low_windows = sliding_window_view(lows, window_size)
 
-        # 使用numpy的argmax/argmin提高性能
-        for i in range(n_records - window_size + 1):
-            # 获取当前窗口的数据
-            window_high = highs[i:i + window_size]
-            window_low = lows[i:i + window_size]
+        # 找到每个窗口的极值位置（相对索引）
+        high_max_indices = np.argmax(high_windows, axis=1)
+        low_min_indices = np.argmin(low_windows, axis=1)
 
-            # 使用argmax和argmin获取相对索引，然后转换为全局索引
-            high_rel_index = np.argmax(window_high)
-            low_rel_index = np.argmin(window_low)
+        # 创建窗口起始位置
+        starts = np.arange(n_records - window_size + 1)
 
-            window_highs_index.append(i + high_rel_index)
-            window_lows_index.append(i + low_rel_index)
+        # 转换为绝对索引
+        high_abs_indices = starts + high_max_indices
+        low_abs_indices = starts + low_min_indices
 
-        # 筛选出现次数达到窗口大小的索引
-        high_counter = Counter(window_highs_index)
-        low_counter = Counter(window_lows_index)
+        # 使用bincount统计每个位置出现的次数
+        high_counts = np.bincount(high_abs_indices, minlength=n_records)
+        low_counts = np.bincount(low_abs_indices, minlength=n_records)
 
-        # 直接筛选，无需反转
-        wave_highs = [idx for idx, count in high_counter.items() if count >= window_size]
-        wave_lows = [idx for idx, count in low_counter.items() if count >= window_size]
-
-        # 按索引排序（确保返回的索引是升序）
-        wave_highs.sort()
-        wave_lows.sort()
+        # 筛选
+        wave_highs = np.where(high_counts >= window_size)[0].tolist()
+        wave_lows = np.where(low_counts >= window_size)[0].tolist()
 
         return wave_highs, wave_lows
 
@@ -255,3 +245,4 @@ class KlinesAnalyzer:
             print(f"check_pass_peak err: {e}")
             return []
         return []
+
