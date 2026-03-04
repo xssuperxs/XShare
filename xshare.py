@@ -68,7 +68,7 @@ class KlinesAnalyzer:
         high_price = kline['high']
         low_price = kline['low']
 
-        # 1. 必须是阴线
+        # 必须是阴线
         if close_price >= open_price:
             return False
         #  计算总范围 无波动
@@ -234,38 +234,38 @@ class KlinesAnalyzer:
 
                 # 获取最后一天的 close 值
                 last_close = df_klines['close'].iloc[-1]
-                close_prices = pd.Series(list(df_klines['close']))
-                # 容忍度 [last_close] 一个周期
-                if period == 'w':
-                    close_prices = pd.Series(list(close_prices) + [last_close])
+                close_prices = pd.Series(list(df_klines['close'])) + [last_close]
 
                 macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
                 # 计算从highIndex到昨天的MACD大于0的个数
-                macd_values = macd_info.macd_diff()  # MACD柱 = DIF - DEA
-                macd_line = macd_info.macd()  # DIF (快线/白线) = 12日EMA - 26日EMA
-                signal_line = macd_info.macd_signal()  # DEA (慢线/黄线) = DIF的9日EMA
+                MACD_values = macd_info.macd_diff()  # MACD柱 = DIF - DEA
+                # DIF_line = macd_info.macd()  # DIF (快线/白线) = 12日EMA - 26日EMA
+                DEA_line = macd_info.macd_signal()  # DEA (慢线/黄线) = DIF的9日EMA
+                if period == 'd':
+                    if MACD_values.iloc[-1] < 0:
+                        return []
+                else:
+                    latest_DEA = DEA_line.iloc[-1]  # 最新DEA值
+                    latest_MACD = MACD_values.iloc[-1]  # 最新DEA值
+                    if latest_DEA < 0 and latest_MACD < 0:
+                        return []
 
-                macd_slice = macd_values.iloc[curLowIndex:]  # 包括最后一天
-                # 统计MACD大于0的天数
+                macd_slice = MACD_values.iloc[curLowIndex:-1]  # 包括最后一天 最后一天是加的
                 rMacdCnt = (macd_slice >= 0).sum()
+                # 构造返回list
+                ret_list = [float(curLowPrice), float(highPrice), int(rMacdCnt)]
                 # 说明低点到高点全是红柱
                 if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - curLowIndex:
                     rMacdCnt = 999  # 全红
-
-                # latest_DIF = macd_line.iloc[-1]  # 最新DIF值
-                latest_DEA = signal_line.iloc[-1]  # 最新DEA值
-                latest_MACD = macd_values.iloc[-1]  # 最新DEA值
-                if latest_DEA < 0 and latest_MACD < 0:
-                    return []
+                    return ret_list
                 # 周线
                 if period == 'w':
-                    return [float(curLowPrice), float(highPrice), int(rMacdCnt)]
+                    return ret_list
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - KlinesAnalyzer.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
-                lowPrice = df_klines.iloc[curLowIndex]['low']
-                if lowPrice <= n_day_low_price:
-                    return [float(lowPrice), float(highPrice), int(rMacdCnt)]
+                if curLowPrice <= n_day_low_price:
+                    return ret_list
         except Exception as e:
             # 处理其他异常
             print(f"check_pass_peak err: {e}")

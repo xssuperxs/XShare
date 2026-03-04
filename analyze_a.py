@@ -95,7 +95,7 @@ def handle_results(results):
 
 if __name__ == '__main__':
     xbs.login()
-    test = True
+    test = False
     if test:
         print(back_test('sz.300617', '2025-12-26', period='d'))
         sys.exit(0)

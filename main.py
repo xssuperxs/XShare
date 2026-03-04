@@ -2,10 +2,10 @@ from xshare import KlinesAnalyzer as ka
 import pandas as pd
 
 data = {
-    'open': [1.84],
-    'high': [1.9],
-    'low': [1.74],
-    'close': [1.79]
+    'open': [39.80],
+    'high': [39.80],
+    'low': [38.77],
+    'close': [39.10]
 }
 
 df = pd.DataFrame(data)
