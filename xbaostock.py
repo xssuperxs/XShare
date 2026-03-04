@@ -68,15 +68,14 @@ class XBaoStock:
         return start_date, end_date
 
     @classmethod
-    def get_stock_codes(cls, code_type: tuple = ("1", "2")) -> List[str]:
+    def get_stock_codes(cls) -> List[str]:
         """
-        :param code_type:  获取需要类型的股票 代码  1是股票 2是代码 5是ETF  4是转债
         :return: 返回提取的股票代码  带有sh.600519  sz.000353 这样格式的list
         """
         stock_list = bs.query_stock_basic()
         stock_df = stock_list.get_data()
         filtered_stocks = stock_df[
-            (stock_df['type'].isin(code_type)) &  # 1 是股票  5 是ETF  2是指数
+            (stock_df['type'].isin('1')) &  # 1 是股票  5 是ETF  2是指数
             (stock_df['status'] == '1') &  # 在交易
             (~stock_df['code_name'].str.contains('ST|\\*ST|退|警示|终止上市', na=False))  # 排除ST股和问题股
             ]
