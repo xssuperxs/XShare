@@ -33,7 +33,6 @@ def analyze_A_stocks(period):
     # 把数据写到数据库中
 
     conn = sqlite3.connect('/root/work/data/xshare.db')
-
     cursor = conn.cursor()
 
     for data in ret_results:

@@ -219,21 +219,26 @@ class KlinesAnalyzer:
                 if highPrice <= sub_high_price:
                     continue
 
-                # 统计MACD 红柱的数量
+                # 获取所有MACD相关值
                 close_prices = pd.Series(list(df_klines['close']))
                 macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
                 # 计算从highIndex到昨天的MACD大于0的个数
-                macd_values = macd_info.macd_diff()
-                macd_slice = macd_values.iloc[highIndex:]  # 从highIndex到昨天（不包括今天）
+                macd_values = macd_info.macd_diff()  # MACD柱 = DIF - DEA
+                macd_line = macd_info.macd()  # DIF (快线/白线) = 12日EMA - 26日EMA
+                signal_line = macd_info.macd_signal()  # DEA (慢线/黄线) = DIF的9日EMA
 
+                macd_slice = macd_values.iloc[highIndex:]  # 从highIndex到昨天（不包括今天）
                 # 统计MACD大于0的天数
                 macd_positive_count = (macd_slice > 0).sum()
 
+                latest_DIF = macd_line.iloc[-1]  # 最新DIF值
+                latest_DEA = signal_line.iloc[-1]  # 最新DEA值
                 # 周线直接返回
                 if period == 'w':
+                    if latest_DIF < 0 or latest_DEA < 0:
+                        return []
                     return [float(curLowPrice), float(highPrice), int(macd_positive_count)]
-                    # retList = [curLowPrice, highPrice, macd_positive_count] if macd_positive_count > 0 else []
-                    # return retList
+
                 if macd_values.iloc[-1] < 0:
                     continue
                 # 获取创新低的天数
