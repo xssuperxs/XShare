@@ -53,42 +53,56 @@ class KlinesAnalyzer:
         return wave_highs, wave_lows
 
     @staticmethod
-    def check_real_bearish(kline: pd.DataFrame, min_decline=0.02, entity_ratio=0.8) -> bool:
+    def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.15,
+                           min_drop_percent=1.5) -> bool:
         """
-        检测 K线是否为实体阴线
-        :param kline:
-        :param min_decline:  K线 跌幅   0.02 = 2%
-        :param entity_ratio: K线 实体 占总K线的比例 0.8 = 80%
-        :return:
+        :param kline:   K线
+        :param body_threshold:   实体部分 百分比 0.70  = 70%
+        :param shadow_tolerance: 下阴线容忍度 占总K线的百分比 0.15 = 15%
+        :param min_drop_percent:  阴线 开盘到收盘的最小跌幅 1.5 = 1.5%
+        :return:  bool
         """
-        # 计算跌幅+
-        low = kline['low']
-        high = kline['high']
-        close = kline['close']
-        open = kline['open']
-        if close >= open:
-            return False
+        # 基础检查
+        open_price = kline['open']
+        close_price = kline['close']
+        high_price = kline['high']
+        low_price = kline['low']
 
+        # 1. 必须是阴线
+        if close_price >= open_price:
+            return False
+        #  计算总范围 无波动
+        total_range = high_price - low_price
+        if total_range == 0:
+            return False
         # 计算跌幅
-        decline_ratio = (open - close) / open
-        # 必须是阴线且跌幅超过阈值
-        if decline_ratio < min_decline:
+        drop_percent = ((open_price - close_price) / open_price) * 100
+        if drop_percent < min_drop_percent:
             return False
+        if close_price == low_price:
+            return True
 
-        # 计算是否为阴线实体较大
-        total_range = high - low
-        entity_size = open - close
-        actual_entity_ratio = entity_size / total_range
-        # 实体比例必须达到80%以上
-        return actual_entity_ratio >= entity_ratio
+        # 计算实体比例
+        body_size = open_price - close_price  # 阴线实体大小
+        body_ratio = body_size / total_range
+
+        # 计算下影线比例
+        lower_shadow = close_price - low_price  # 阴线的下影线
+        lower_shadow_ratio = lower_shadow / total_range
+
+        # 判断条件
+        meets_body_condition = body_ratio >= body_threshold
+        meets_shadow_condition = lower_shadow_ratio <= shadow_tolerance
+        # 实体百分比要匹配  下阴线容忍度要匹配
+        return meets_body_condition and meets_shadow_condition
 
     @staticmethod
     def check_highToLow(klines: pd.DataFrame) -> bool:
         """
-        部冲高回落  仙人指路
-        :param klines:
-        :return:
-        """
+          部冲高回落  仙人指路
+          :param klines:
+          :return:
+          """
         RECORD_COUNT = KlinesAnalyzer.__RECORD_COUNT
         # K线小于100条记录 返回FALSE
         if len(klines) < RECORD_COUNT or klines.empty:
