@@ -13,9 +13,10 @@ def back_test(code, end_date, period='d'):
     # 计算100周前（1周 = 7天）
     start = end - datetime.timedelta(weeks=100)
     # 格式化
-    start_date = start.strftime('%Y-%m-%d')
     end_date = end.strftime('%Y-%m-%d')
+    start_date = start.strftime('%Y-%m-%d')
     df = xbs.get_stock_hist(code, period=period, start_date=start_date, end_date=end_date)
+    print(len(df))
     return ka.check_pass_peak(df, period)
 
 
@@ -94,9 +95,9 @@ def handle_results(results):
 
 if __name__ == '__main__':
     xbs.login()
-    test = False
+    test = True
     if test:
-        print(back_test('sz.002061', '2026-03-02', period='d'))
+        print(back_test('sz.300617', '2025-12-26', period='d'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)

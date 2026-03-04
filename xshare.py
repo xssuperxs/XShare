@@ -12,7 +12,7 @@ class KlinesAnalyzer:
     分析K线 形态 是否为仙人指路            check_highToLow
     """
     # 记录数
-    __RECORD_COUNT = 90
+    __RECORD_COUNT = 100
     # 创新低天数
     __NEW_LOW_DAYS = 18
 
@@ -175,9 +175,8 @@ class KlinesAnalyzer:
 
                 # 确定前低  和 最低
                 lowPoints = lows_index[::-1]  # 翻转list  ::-1  一般情况下更快
-                curLowIndex = -1
-                preLowIndex = -1
-                highIndex = -1
+                # 链式赋值
+                curLowIndex = preLowIndex = highIndex = -1
                 # 确定波段的最低点
                 for current, next_item in zip(lowPoints, lowPoints[1:]):
                     curLow = df_klines.iloc[current]['low']
@@ -219,29 +218,34 @@ class KlinesAnalyzer:
                 if highPrice <= sub_high_price:
                     continue
 
-                # 获取所有MACD相关值
+                # 获取最后一天的 close 值
+                last_close = df_klines['close'].iloc[-1]
                 close_prices = pd.Series(list(df_klines['close']))
+                # 容忍度 [last_close] 一个周期
+                if period == 'w':
+                    close_prices = pd.Series(list(close_prices) + [last_close])
+
                 macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
                 # 计算从highIndex到昨天的MACD大于0的个数
                 macd_values = macd_info.macd_diff()  # MACD柱 = DIF - DEA
                 macd_line = macd_info.macd()  # DIF (快线/白线) = 12日EMA - 26日EMA
                 signal_line = macd_info.macd_signal()  # DEA (慢线/黄线) = DIF的9日EMA
 
-                macd_slice = macd_values.iloc[highIndex:]  # 从highIndex到昨天（不包括今天）
+                macd_slice = macd_values.iloc[curLowIndex:]  # 包括最后一天
                 # 统计MACD大于0的天数
-                rMacdCnt = (macd_slice > 0).sum()
+                rMacdCnt = (macd_slice >= 0).sum()
+                # 说明低点到高点全是红柱
+                if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - curLowIndex:
+                    rMacdCnt = 999  # 全红
 
-                latest_DIF = macd_line.iloc[-1]  # 最新DIF值
+                # latest_DIF = macd_line.iloc[-1]  # 最新DIF值
                 latest_DEA = signal_line.iloc[-1]  # 最新DEA值
                 latest_MACD = macd_values.iloc[-1]  # 最新DEA值
-                # 周线直接返回
+                if latest_DEA < 0 and latest_MACD < 0:
+                    return []
+                # 周线
                 if period == 'w':
-                    if (latest_DIF < 0 or latest_DEA < 0) and latest_MACD < 0:
-                        return []
                     return [float(curLowPrice), float(highPrice), int(rMacdCnt)]
-
-                if latest_MACD < 0:
-                    continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - KlinesAnalyzer.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()

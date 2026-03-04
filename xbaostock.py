@@ -50,8 +50,7 @@ class XBaoStock:
 
     @classmethod
     def get_trade_dates(cls, period: str = 'd') -> tuple[str, str]:
-        today = datetime.date.today()
-        start_date = (today - datetime.timedelta(weeks=103)).strftime('%Y-%m-%d')
+        start_date = (datetime.date.today() - datetime.timedelta(weeks=120)).strftime('%Y-%m-%d')
         rs = bs.query_history_k_data_plus(
             code='sh.000001',
             fields="date",  # 字段可调整
@@ -64,7 +63,7 @@ class XBaoStock:
         while (rs.error_code == '0') & rs.next():
             data_list.append(rs.get_row_data())
         df = pd.DataFrame(data_list, columns=rs.fields)
-        start_date = df['date'].iloc[-101]
+        start_date = df['date'].iloc[-110]
         end_date = df['date'].iloc[-1]
         return start_date, end_date
 
