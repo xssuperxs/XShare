@@ -229,24 +229,25 @@ class KlinesAnalyzer:
 
                 macd_slice = macd_values.iloc[highIndex:]  # 从highIndex到昨天（不包括今天）
                 # 统计MACD大于0的天数
-                macd_positive_count = (macd_slice > 0).sum()
+                rMacdCnt = (macd_slice > 0).sum()
 
                 latest_DIF = macd_line.iloc[-1]  # 最新DIF值
                 latest_DEA = signal_line.iloc[-1]  # 最新DEA值
+                latest_MACD = macd_values.iloc[-1]  # 最新DEA值
                 # 周线直接返回
                 if period == 'w':
-                    if latest_DIF < 0 or latest_DEA < 0:
+                    if (latest_DIF < 0 or latest_DEA < 0) and latest_MACD < 0:
                         return []
-                    return [float(curLowPrice), float(highPrice), int(macd_positive_count)]
+                    return [float(curLowPrice), float(highPrice), int(rMacdCnt)]
 
-                if macd_values.iloc[-1] < 0:
+                if latest_MACD < 0:
                     continue
                 # 获取创新低的天数
                 sub_check_low = df_klines.iloc[curLowIndex - KlinesAnalyzer.__NEW_LOW_DAYS: curLowIndex]
                 n_day_low_price = sub_check_low['low'].min()
                 lowPrice = df_klines.iloc[curLowIndex]['low']
                 if lowPrice <= n_day_low_price:
-                    return [float(lowPrice), float(highPrice), int(macd_positive_count)]
+                    return [float(lowPrice), float(highPrice), int(rMacdCnt)]
         except Exception as e:
             # 处理其他异常
             print(f"check_pass_peak err: {e}")
