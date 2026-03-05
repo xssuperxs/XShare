@@ -97,53 +97,38 @@ class KlinesAnalyzer:
         return meets_body_condition and meets_shadow_condition
 
     @staticmethod
-    def check_highToLow(klines: pd.DataFrame) -> bool:
-        """
-          部冲高回落  仙人指路
-          :param klines:
-          :return:
-          """
-        RECORD_COUNT = KlinesAnalyzer.__RECORD_COUNT
-        # K线小于100条记录 返回FALSE
-        if len(klines) < RECORD_COUNT or klines.empty:
-            return False
-        df_klines = klines.tail(RECORD_COUNT)
-        try:
-            today_kline = df_klines.iloc[-1]
-            pre_kline = df_klines.iloc[-2]
+    def check_highToLow(kline: pd.DataFrame, upper_shadow_pct_threshold: float = 0.6,
+                        min_amplitude_pct: float = 0.01) -> bool:
+        open_price = kline['open']
+        close_price = kline['close']
+        high_price = kline['high']
+        low_price = kline['low']
 
-            today_high = today_kline['high']
-            today_low = today_kline['low']
-            today_close = today_kline['close']
-            today_vol = today_kline['volume']
-            pre_open = pre_kline['open']
-            pre_close = pre_kline['close']
-            pre_vol = pre_kline['volume']
-
-            # 今天的高点比昨天要低
-            # if today_high > pre_high:
-            #     return False
-            # 上一个交易日 要是阴线
-            if pre_close > pre_open:
-                return False
-            # 判断上影线要长
-            high_line = today_high - today_close
-            low_line = today_close - today_low
-            if high_line < low_line:
-                return False
-            macd_info = MACD(close=df_klines['close'], window_fast=12, window_slow=26, window_sign=9)
-            last_DIF = macd_info.macd().iloc[-1]
-            last_DEA = macd_info.macd_signal().iloc[-1]
-            last_MACD = macd_info.macd_diff().iloc[-1]
-            if last_MACD < 0 or last_DIF < 0 or last_DEA < 0:
-                return False
-            if today_vol > pre_vol:
-                return False
-        except Exception as e:
-            # 处理其他异常
-            print(f"发生未知错误: {e}")
+        # 计算总振幅
+        total_range = high_price - low_price
+        if total_range == 0:
             return False
-        return True
+
+        # 计算上影线长度（从最高点到收盘价或开盘价的较高者） 获取上阴线的长度
+        upper_shadow = high_price - max(open_price, close_price)
+
+        # 计算上影线占总振幅的比例
+        upper_shadow_pct = upper_shadow / total_range
+
+        # 计算上影线相对于开盘价的百分比
+        upper_shadow_price_pct = upper_shadow / open_price
+
+        # 计算实体长度
+        # body = abs(close_price - open_price)
+        # body_pct = body / total_range if total_range > 0 else 0
+
+        # 判断条件
+        condition1 = upper_shadow_pct >= upper_shadow_pct_threshold
+        condition2 = upper_shadow_price_pct >= min_amplitude_pct
+
+        is_high_low = all([condition1, condition2])
+
+        return is_high_low
 
     @staticmethod
     def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
@@ -271,4 +256,3 @@ class KlinesAnalyzer:
             # 处理其他异常
             print(f"check_pass_peak err: {e}")
             return []
-        return []
