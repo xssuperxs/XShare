@@ -54,7 +54,7 @@ class KlinesAnalyzer:
 
     @staticmethod
     def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.15,
-                           min_drop_percent=1.5) -> bool:
+                           min_drop_percent=1.2) -> bool:
         """
         :param kline:   K线
         :param body_threshold:   实体部分 百分比 0.70  = 70%
@@ -241,12 +241,13 @@ class KlinesAnalyzer:
                 MACD_values = macd_info.macd_diff()  # MACD柱 = DIF - DEA
                 # DIF_line = macd_info.macd()  # DIF (快线/白线) = 12日EMA - 26日EMA
                 DEA_line = macd_info.macd_signal()  # DEA (慢线/黄线) = DIF的9日EMA
+
+                latest_MACD = MACD_values.iloc[-1]  # 最新一天的MACD值
                 if period == 'd':
-                    if MACD_values.iloc[-1] < 0:
+                    if latest_MACD < 0:
                         return []
                 else:
                     latest_DEA = DEA_line.iloc[-1]  # 最新DEA值
-                    latest_MACD = MACD_values.iloc[-1]  # 最新DEA值
                     if latest_DEA < 0 and latest_MACD < 0:
                         return []
 

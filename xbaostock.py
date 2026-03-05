@@ -119,5 +119,5 @@ class XBaoStock:
             return df
 
         except Exception as e:
-            print(f"获取数据异常：{e}")
+            print(f"get_stock_hist 获取数据异常：{e}")
             return None
