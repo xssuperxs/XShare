@@ -75,7 +75,7 @@ class XBaoStock:
         stock_list = bs.query_stock_basic()
         stock_df = stock_list.get_data()
         filtered_stocks = stock_df[
-            (stock_df['type'].isin('1')) &  # 1 是股票  5 是ETF  2是指数
+            (stock_df['type'].isin(['1'])) &  # 1 是股票  5 是ETF  2是指数
             (stock_df['status'] == '1') &  # 在交易
             (~stock_df['code_name'].str.contains('ST|\\*ST|退|警示|终止上市', na=False))  # 排除ST股和问题股
             ]
