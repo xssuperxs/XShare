@@ -53,7 +53,7 @@ class KlinesAnalyzer:
         return wave_highs, wave_lows
 
     @staticmethod
-    def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.15,
+    def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
                            min_drop_percent=1.2) -> bool:
         """
         :param kline:   K线
@@ -238,11 +238,13 @@ class KlinesAnalyzer:
 
                 macd_slice = MACD_values.iloc[curLowIndex:-1]  # 包括最后一天 最后一天是加的
                 rMacdCnt = (macd_slice >= 0).sum()
+                if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - curLowIndex:
+                    if rMacdCnt > 3:
+                        rMacdCnt = 999  # 全红
                 # 构造返回list
                 ret_list = [float(curLowPrice), float(highPrice), int(rMacdCnt)]
                 # 说明低点到高点全是红柱
-                if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - curLowIndex:
-                    rMacdCnt = 999  # 全红
+                if rMacdCnt == 999:
                     return ret_list
                 # 周线
                 if period == 'w':
