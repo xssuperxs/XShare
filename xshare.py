@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 from numba import jit
+from xbaostock import XBaoStock as xbs
 
 
 class KlinesAnalyzer:
@@ -102,10 +103,10 @@ class KlinesAnalyzer:
         latest_MACD = MACD_values.iloc[-1]
 
         # 提取MACD 低点到今天的红柱数量
-        macd_slice = MACD_values.iloc[lowIndex:-1]  # 包括最后一天 最后一天是加的
+        macd_slice = MACD_values.iloc[lowIndex-1:-1]  # 包括最后一天 最后一天是加的
         rMacdCnt = (macd_slice >= 0).sum()
         # 如果是全红 就直接返回
-        if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - lowIndex:
+        if rMacdCnt == len(klines) - lowIndex:
             if rMacdCnt >= 3:
                 rMacdCnt = 999  # 全红
                 return True, rMacdCnt
@@ -197,7 +198,7 @@ class KlinesAnalyzer:
     @staticmethod
     def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
         """
-        破低翻  过波段高点  头肩底
+        分析K线形态  过波段高点  头肩底
         "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
         :param klines:  要分析的K线数据
         :param period:  周期  d 日线  w 周线
@@ -296,3 +297,5 @@ class KlinesAnalyzer:
             # 处理其他异常
             print(f"check_pass_peak err: {e}")
             return []
+
+

@@ -16,7 +16,16 @@ def back_test(code, end_date, period='d'):
     end_date = end.strftime('%Y-%m-%d')
     start_date = start.strftime('%Y-%m-%d')
     df = xbs.get_stock_hist(code, period=period, start_date=start_date, end_date=end_date)
-    return ka.check_pass_peak(df, period)
+
+    ret_list = ka.check_pass_peak(df, period)
+    if not ret_list:
+        return False
+    if period == 'w' or ret_list[-1] == 999:
+        return True
+    start_date_w, end_date_w = xbs.get_trade_dates('w')
+    df_weekly = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
+    is_valid = ka.check2_week_macd(df_weekly)
+    return is_valid
 
 
 def analyze_A(period):
@@ -32,20 +41,19 @@ def analyze_A(period):
     start_date_w, end_date_w = xbs.get_trade_dates('w')
     for code in tqdm(codes, desc="Progress"):
         try:
-            # 提取历史K线信息
             df = xbs.get_stock_hist(code, period, start_date, end_date)
-            # 开始分析K线数据  破底翻
-            if ka.check_pass_peak(df, period):
-                if period == 'd':
-                    df = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
-                    if not ka.check2_week_macd(df):
-                        continue
-                code = code.split(".")[-1]
+            ret_list = ka.check_pass_peak(df, period)
+            if not ret_list:  # 列表为空
+                continue
+
+            if period == 'w' or ret_list[-1] == 999:
                 ret_results.append(code)
-            # 前一根阴 首阳
-            # if XShare.strategy_highToLow(df):
-            #     code = code.split(".")[-1]
-            #     ret_results.append(code)
+                continue
+            # 检查周线的快线在水上
+            df_weekly = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
+            is_valid = ka.check2_week_macd(df_weekly)
+            if is_valid:
+                ret_results.append(code)
         except Exception as e:
             nError += 1
             if nError == 1:
@@ -99,7 +107,7 @@ def handle_results(results):
 
 if __name__ == '__main__':
     xbs.login()
-    test = False
+    test = True
     if test:
         print(back_test('sz.300617', '2025-12-26', period='d'))
         sys.exit(0)
