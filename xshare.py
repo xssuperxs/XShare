@@ -53,6 +53,47 @@ class KlinesAnalyzer:
         return wave_highs, wave_lows
 
     @staticmethod
+    def __check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
+        """
+        :param klines:  K线数据
+        :param lowIndex: 前波段低点的索引
+        :param period:  周期
+        :return: bool
+        """
+
+        # 获取最后一天的 close 值 容忍度
+        last_close = klines['close'].iloc[-1]
+        # 构造所需要的收盘价
+        close_prices = pd.Series(list(klines['close'])) + [last_close]
+        # 计算MACD
+        macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
+        # MACD 柱
+        MACD_values = macd_info.macd_diff()
+        # DIF  快线 白线
+        DIF_line = macd_info.macd()
+        # DEA  黄线 慢线
+        DEA_line = macd_info.macd_signal()
+        # 获取最后一天的值
+        latest_DEA = DEA_line.iloc[-1]
+        latest_DIF = DIF_line.iloc[-1]
+        latest_MACD = MACD_values.iloc[-1]
+
+        # 提取MACD 低点到今天的红柱数量
+        macd_slice = MACD_values.iloc[lowIndex:-1]  # 包括最后一天 最后一天是加的
+        rMacdCnt = (macd_slice >= 0).sum()
+        # 如果是全红 就直接返回
+        if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - lowIndex:
+            if rMacdCnt > 3:
+                rMacdCnt = 999  # 全红
+                return True, rMacdCnt
+
+        # MACD信号过滤
+        if (period == 'd' and latest_MACD < 0) or (period == 'w' and latest_DIF < 0 and latest_MACD < 0):
+            return False, rMacdCnt
+
+        return True, rMacdCnt
+
+    @staticmethod
     def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
                            min_drop_percent=1.2) -> bool:
         """
@@ -217,36 +258,10 @@ class KlinesAnalyzer:
                 if highPrice <= sub_high_price:
                     continue
 
-                # 获取最后一天的 close 值
-                last_close = df_klines['close'].iloc[-1]
-                close_prices = pd.Series(list(df_klines['close'])) + [last_close]
-
-                macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
-                # 计算从highIndex到昨天的MACD大于0的个数
-                MACD_values = macd_info.macd_diff()  # MACD柱 = DIF - DEA
-                # DIF_line = macd_info.macd()  # DIF (快线/白线) = 12日EMA - 26日EMA
-                DEA_line = macd_info.macd_signal()  # DEA (慢线/黄线) = DIF的9日EMA
-
-                latest_MACD = MACD_values.iloc[-1]  # 最新一天的MACD值
-                if period == 'd':
-                    if latest_MACD < 0:
-                        return []
-                else:
-                    latest_DEA = DEA_line.iloc[-1]  # 最新DEA值
-                    if latest_DEA < 0 and latest_MACD < 0:
-                        return []
-
-                macd_slice = MACD_values.iloc[curLowIndex:-1]  # 包括最后一天 最后一天是加的
-                rMacdCnt = (macd_slice >= 0).sum()
-                if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - curLowIndex:
-                    if rMacdCnt > 3:
-                        rMacdCnt = 999  # 全红
-                # 构造返回list
-                ret_list = [float(curLowPrice), float(highPrice), int(rMacdCnt)]
-                # 说明低点到高点全是红柱
-                if rMacdCnt == 999:
-                    return ret_list
-                # 周线
+                macd_ok, rcnt = KlinesAnalyzer.__check_MACD(df_klines, curLowIndex, period)
+                if not macd_ok:
+                    return []
+                ret_list = [float(curLowPrice), float(highPrice), int(rcnt)]
                 if period == 'w':
                     return ret_list
                 # 获取创新低的天数
