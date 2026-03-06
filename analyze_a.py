@@ -1,3 +1,4 @@
+import xshare
 from xshare import KlinesAnalyzer as ka
 import subprocess
 import sys
@@ -15,17 +16,9 @@ def back_test(code, end_date, period='d'):
     # 格式化
     end_date = end.strftime('%Y-%m-%d')
     start_date = start.strftime('%Y-%m-%d')
-    df = xbs.get_stock_hist(code, period=period, start_date=start_date, end_date=end_date)
-
-    ret_list = ka.check_pass_peak(df, period)
-    if not ret_list:
-        return False
-    if period == 'w' or ret_list[-1] == 999:
-        return True
     start_date_w, end_date_w = xbs.get_trade_dates('w')
-    df_weekly = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
-    is_valid = ka.check2_week_macd(df_weekly)
-    return is_valid
+
+    return xshare.analyze_an_stock(code, start_date, end_date, start_date, end_date, period)
 
 
 def analyze_A(period):
@@ -41,18 +34,7 @@ def analyze_A(period):
     start_date_w, end_date_w = xbs.get_trade_dates('w')
     for code in tqdm(codes, desc="Progress"):
         try:
-            df = xbs.get_stock_hist(code, period, start_date, end_date)
-            ret_list = ka.check_pass_peak(df, period)
-            if not ret_list:  # 列表为空
-                continue
-
-            if period == 'w' or ret_list[-1] == 999:
-                ret_results.append(code)
-                continue
-            # 检查周线的快线在水上
-            df_weekly = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
-            is_valid = ka.check2_week_macd(df_weekly)
-            if is_valid:
+            if xshare.analyze_an_stock(code, start_date, end_date, start_date_w, end_date_w, period):
                 ret_results.append(code)
         except Exception as e:
             nError += 1
@@ -109,7 +91,7 @@ if __name__ == '__main__':
     xbs.login()
     test = True
     if test:
-        print(back_test('sz.300617', '2025-12-26', period='d'))
+        print(back_test('sh.605136', '2024-07-12', period='d'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)

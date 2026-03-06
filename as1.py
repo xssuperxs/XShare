@@ -5,36 +5,7 @@ import sys
 import sqlite3
 
 
-# start_date = end_date = start_date_w = end_date_w = ''
-#
-#
-# def analysis_a_stock(code, start_date, end_date, period='d') -> list:
-#     """
-#      分析一只股票
-#     :param code:
-#     :param start_date:
-#     :param end_date:
-#     :param period:
-#     :return:
-#     """
-#     start_date_w, end_date_w = xbs.get_trade_dates('w')
-#     # 提取历史K线信息
-#     df = xbs.get_stock_hist(code, period, start_date, end_date)
-#     ret_list = ka.check_pass_peak(df, period)
-#     if period == 'd':
-#         ret_list = ka.check_pass_peak(df, period)
-#         if period == 'd':
-#             df = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
-#             if not ka.check2_week_macd(df):
-#                 return []
-#     # 开始分析K线数据  破底翻
-#     if ret_list:
-#         ret_list.insert(0, code)
-#         ret_list.insert(3, end_date)
-#         ret_list.insert(4, period)
-#     return ret_list
 
-# 提取公共的插入和添加逻辑
 def append_result(ret_list, code, end_date, period):
     ret_list.insert(0, code)
     ret_list.insert(3, end_date)
@@ -57,7 +28,7 @@ def analyze_A_stocks(period):
             if not ret_list:  # 列表为空
                 continue
 
-            if period == 'w' or ret_list[-1] == 999:
+            if period == 'w':
                 ret_results.append(append_result(ret_list, code, end_date, period))
                 continue
             # 检查周线的快线在水上

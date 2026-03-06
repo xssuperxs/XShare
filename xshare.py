@@ -60,21 +60,30 @@ class KlinesAnalyzer:
         :param klines:  K线数据
         :return:
         """
+
+        klines = klines.tail(100)
         # 计算周线快线
+        last_close = klines['close'].iloc[-1]
+
+        # 使用 concat 追加
+        # 原始 Series
         close_prices = pd.Series(list(klines['close']))
         macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
         DIF_line = macd_info.macd()
         latest_DIF = DIF_line.iloc[-1]
-
-        # DEA_line = macd_info.macd_signal()   慢线
+        MACD_values = macd_info.macd_diff()
+        latest_MACD = MACD_values.iloc[-1]
+        # DEA_line = macd_info.macd_signal()
+        # latest_DEA = DEA_line.iloc[-1]
+        if latest_DIF > 0:
+            return True
         # 计算MACD 红柱
-        last_close = klines['close'].iloc[-1]
-        close_prices = pd.Series(list(klines['close'])) + last_close + last_close
+        new_values = [last_close, last_close]
+        close_prices = pd.concat([close_prices, pd.Series(new_values)], ignore_index=True)
         macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
         MACD_values = macd_info.macd_diff()
         latest_MACD = MACD_values.iloc[-1]
-
-        return latest_DIF > 0 or latest_MACD > 0
+        return latest_MACD > 0
 
     @staticmethod
     def __check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
@@ -88,7 +97,7 @@ class KlinesAnalyzer:
         # 获取最后一天的 close 值 容忍度
         last_close = klines['close'].iloc[-1]
         # 构造所需要的收盘价
-        close_prices = pd.Series(list(klines['close'])) + [last_close]
+        close_prices = pd.concat([pd.Series(list(klines['close'])), pd.Series(last_close)], ignore_index=True)
         # 计算MACD
         macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
         # MACD 柱
@@ -103,7 +112,7 @@ class KlinesAnalyzer:
         latest_MACD = MACD_values.iloc[-1]
 
         # 提取MACD 低点到今天的红柱数量
-        macd_slice = MACD_values.iloc[lowIndex-1:-1]  # 包括最后一天 最后一天是加的
+        macd_slice = MACD_values.iloc[lowIndex - 1:-1]  # 包括最后一天 最后一天是加的
         rMacdCnt = (macd_slice >= 0).sum()
         # 如果是全红 就直接返回
         if rMacdCnt == len(klines) - lowIndex:
@@ -299,3 +308,20 @@ class KlinesAnalyzer:
             return []
 
 
+def analyze_an_stock(code, start_date, end_date, start_date_w, end_date_w, period='d') -> list:
+    if period == 'w':
+        df = xbs.get_stock_hist(code, period, start_date_w, end_date_w)
+    else:
+        df = xbs.get_stock_hist(code, period, start_date, end_date)
+
+    ret_list = KlinesAnalyzer.check_pass_peak(df, period)
+    if not ret_list:  # 列表为空
+        return []
+    if period == 'w':
+        return ret_list
+    # 检查周线的快线在水上
+    df_weekly = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
+    is_valid = KlinesAnalyzer.check2_week_macd(df_weekly)
+    if is_valid:
+        return ret_list
+    return []
