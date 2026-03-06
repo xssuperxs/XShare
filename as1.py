@@ -12,17 +12,23 @@ def analyze_A_stocks(period):
     nError = 0
     ret_results = []
     start_date, end_date = xbs.get_trade_dates(period)
+    start_date_w, end_date_w = xbs.get_trade_dates('w')
     for code in codes:
         try:
             # 提取历史K线信息
             df = xbs.get_stock_hist(code, period, start_date, end_date)
             ret_list = ka.check_pass_peak(df, period)
+            if period == 'd':
+                df = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
+                if not ka.check2_week_macd(df):
+                    continue
             # 开始分析K线数据  破底翻
             if ret_list:
                 ret_list.insert(0, code)
                 ret_list.insert(3, end_date)
                 ret_list.insert(4, period)
                 ret_results.append(ret_list)
+
         except Exception as e:
             nError += 1
             if nError == 1:

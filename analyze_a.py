@@ -16,7 +16,6 @@ def back_test(code, end_date, period='d'):
     end_date = end.strftime('%Y-%m-%d')
     start_date = start.strftime('%Y-%m-%d')
     df = xbs.get_stock_hist(code, period=period, start_date=start_date, end_date=end_date)
-    print(len(df))
     return ka.check_pass_peak(df, period)
 
 
@@ -30,12 +29,17 @@ def analyze_A(period):
     nError = 0
     ret_results = []
     start_date, end_date = xbs.get_trade_dates(period)
+    start_date_w, end_date_w = xbs.get_trade_dates('w')
     for code in tqdm(codes, desc="Progress"):
         try:
             # 提取历史K线信息
             df = xbs.get_stock_hist(code, period, start_date, end_date)
             # 开始分析K线数据  破底翻
             if ka.check_pass_peak(df, period):
+                if period == 'd':
+                    df = xbs.get_stock_hist(code, 'w', start_date_w, end_date_w)
+                    if not ka.check2_week_macd(df):
+                        continue
                 code = code.split(".")[-1]
                 ret_results.append(code)
             # 前一根阴 首阳

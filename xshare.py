@@ -53,6 +53,29 @@ class KlinesAnalyzer:
         return wave_highs, wave_lows
 
     @staticmethod
+    def check2_week_macd(klines: pd.DataFrame):
+        """
+        检测 周线的 DIF 线 要在 水上  非常重要！！！！！ 加速段都是从水上开始的
+        :param klines:  K线数据
+        :return:
+        """
+        # 计算周线快线
+        close_prices = pd.Series(list(klines['close']))
+        macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
+        DIF_line = macd_info.macd()
+        latest_DIF = DIF_line.iloc[-1]
+
+        # DEA_line = macd_info.macd_signal()   慢线
+        # 计算MACD 红柱
+        last_close = klines['close'].iloc[-1]
+        close_prices = pd.Series(list(klines['close'])) + last_close + last_close
+        macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
+        MACD_values = macd_info.macd_diff()
+        latest_MACD = MACD_values.iloc[-1]
+
+        return latest_DIF > 0 or latest_MACD > 0
+
+    @staticmethod
     def __check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
         """
         :param klines:  K线数据
@@ -83,7 +106,7 @@ class KlinesAnalyzer:
         rMacdCnt = (macd_slice >= 0).sum()
         # 如果是全红 就直接返回
         if rMacdCnt == KlinesAnalyzer.__RECORD_COUNT - lowIndex:
-            if rMacdCnt > 3:
+            if rMacdCnt >= 3:
                 rMacdCnt = 999  # 全红
                 return True, rMacdCnt
 
