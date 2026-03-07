@@ -93,7 +93,7 @@ _RECORD_COUNT = 100
 _NEW_LOW_DAYS = 18
 
 
-def __getWavePoints(records, window_size, high_flag, low_flag):
+def _getWavePoints(records, window_size, high_flag, low_flag):
     """
        完全向量化的卷积思想实现
        使用滑动窗口视图和广播机制
@@ -129,7 +129,7 @@ def __getWavePoints(records, window_size, high_flag, low_flag):
     return wave_highs, wave_lows
 
 
-def check2_week_macd(klines: pd.DataFrame):
+def _check2_week_macd(klines: pd.DataFrame):
     """
     检测 周线的 DIF 线 要在 水上  非常重要！！！！！ 加速段都是从水上开始的
     :param klines:  K线数据
@@ -157,7 +157,7 @@ def check2_week_macd(klines: pd.DataFrame):
     return latest_MACD > 0
 
 
-def __check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
+def _check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
     """
     :param klines:  K线数据
     :param lowIndex: 前波段低点的索引
@@ -300,7 +300,7 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
 
         for n in [2, 3]:
             # 获取波段的 高低点
-            highs_index, lows_index = __getWavePoints(df_klines, n, 'high', 'low')
+            highs_index, lows_index = _getWavePoints(df_klines, n, 'high', 'low')
 
             # 波段数量小于3
             if len(lows_index) < 3 or len(highs_index) < 3:
@@ -362,7 +362,7 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
             if highPrice <= sub_high_price:
                 continue
 
-            macd_ok, rcnt = __check_MACD(df_klines, curLowIndex, period)
+            macd_ok, rcnt = _check_MACD(df_klines, curLowIndex, period)
             if not macd_ok:
                 return []
             ret_list = [float(curLowPrice), float(highPrice), int(rcnt)]
@@ -379,7 +379,7 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
         return []
 
 
-def append_result(ret_list, code, end_date, period):
+def _append_result(ret_list, code, end_date, period):
     ret_list.insert(0, code)
     ret_list.insert(3, end_date)
     ret_list.insert(4, period)
@@ -397,13 +397,13 @@ def analyze_an_stock(code, period='d') -> list:
     ret_list = check_pass_peak(df, period)
     if not ret_list:  # 列表为空
         return []
-    append_result(ret_list, code, end_data_list, period)
+    _append_result(ret_list, code, end_data_list, period)
 
     if period == 'w':
         return ret_list
     # 检查周线的快线在水上
     df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
-    is_valid = check2_week_macd(df_weekly)
+    is_valid = _check2_week_macd(df_weekly)
 
     if not is_valid and ret_list[-1] < 999:
         return []
