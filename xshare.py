@@ -388,9 +388,9 @@ def _append_result(ret_list, code, end_date, period):
 
 def analyze_an_stock(code, period='d') -> list:
     if period == 'w':
-        df = _bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
-    else:
         df = _bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
+    else:
+        df = _bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
 
     end_data_list = _end_date_d if period == 'd' else _end_date_w
 

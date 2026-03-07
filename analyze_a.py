@@ -32,7 +32,7 @@ def analyze_A(period):
     for code in tqdm(codes, desc="Progress"):
         try:
             if xshare.analyze_an_stock(code, period):
-                ret_results.append(code)
+                ret_results.append(code[-6:])
         except Exception as e:
             nError += 1
             if nError == 1:
@@ -85,7 +85,7 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
-    test = True
+    test = False
     if test:
         print(back_test('sh.605136', '2024-07-12', period='d'))
         sys.exit(0)
