@@ -1,9 +1,7 @@
 import xshare
-from xshare import KlinesAnalyzer as ka
 import subprocess
 import sys
 from tqdm import tqdm
-from xbaostock import XBaoStock as xbs
 import datetime
 
 
@@ -16,13 +14,14 @@ def back_test(code, end_date, period='d'):
     # 格式化
     end_date = end.strftime('%Y-%m-%d')
     start_date = start.strftime('%Y-%m-%d')
-    start_date_w, end_date_w = xbs.get_trade_dates('w')
 
-    return xshare.analyze_an_stock(code, start_date, end_date, start_date, end_date, period)
+    xshare._end_date_d = xshare._end_date_w = end_date
+    xshare._start_date_d = xshare._start_date_w = start_date
+    return xshare.analyze_an_stock(code, period)
 
 
 def analyze_A(period):
-    codes = xbs.get_stock_codes()
+    codes = xshare.bs_get_stock_codes()
     if not codes:
         print("baostock 可能没有更新完成 稍后再试！")
         return []
@@ -30,11 +29,9 @@ def analyze_A(period):
     print("[INFO] Analyzing  A stocks and ETF...")
     nError = 0
     ret_results = []
-    start_date, end_date = xbs.get_trade_dates(period)
-    start_date_w, end_date_w = xbs.get_trade_dates('w')
     for code in tqdm(codes, desc="Progress"):
         try:
-            if xshare.analyze_an_stock(code, start_date, end_date, start_date_w, end_date_w, period):
+            if xshare.analyze_an_stock(code, period):
                 ret_results.append(code)
         except Exception as e:
             nError += 1
@@ -88,7 +85,6 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
-    xbs.login()
     test = True
     if test:
         print(back_test('sh.605136', '2024-07-12', period='d'))
@@ -99,4 +95,3 @@ if __name__ == '__main__':
     update_packets()
     # 开始分析
     handle_results(analyze_A(p_period))
-    xbs.logout()
