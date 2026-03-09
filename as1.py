@@ -1,15 +1,7 @@
-
 import subprocess
 import sys
 import sqlite3
 import xshare
-
-
-def append_result(ret_list, code, end_date, period):
-    ret_list.insert(0, code)
-    ret_list.insert(3, end_date)
-    ret_list.insert(4, period)
-    return ret_list
 
 
 def analyze_A_stocks(period):
@@ -22,7 +14,7 @@ def analyze_A_stocks(period):
         try:
             ret_list = xshare.analyze_an_stock(code, period)
             if ret_list:
-                ret_results.append(period)
+                ret_results.append(ret_list)
         except Exception as e:
             nError += 1
             if nError == 1:
@@ -74,4 +66,3 @@ if __name__ == '__main__':
     update_packets()
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     analyze_A_stocks(p_period)
-

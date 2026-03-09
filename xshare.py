@@ -1,9 +1,11 @@
-from ta.trend import MACD
 import pandas as pd
+from ta.trend import MACD
 import numpy as np
-from numpy.lib.stride_tricks import sliding_window_view
+
 import baostock as bs
 import datetime
+
+from scipy.signal import find_peaks
 
 # 登陆baostock
 lg = bs.login()
@@ -86,47 +88,8 @@ def _bs_get_stock_hist(code: str, period: str = 'd',
 _start_date_d, _end_date_d = _bs_get_trade_date('d')
 _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
-# 记录数
-_RECORD_COUNT = 100
-
 # 创新低天数
 _NEW_LOW_DAYS = 18
-
-
-def _getWavePoints(records, window_size, high_flag, low_flag):
-    """
-       完全向量化的卷积思想实现
-       使用滑动窗口视图和广播机制
-    """
-
-    highs = records[high_flag].values
-    lows = records[low_flag].values
-    n_records = len(highs)
-
-    # 创建滑动窗口视图（不复制数据，只是视图）
-    high_windows = sliding_window_view(highs, window_size)
-    low_windows = sliding_window_view(lows, window_size)
-
-    # 找到每个窗口的极值位置（相对索引）
-    high_max_indices = np.argmax(high_windows, axis=1)
-    low_min_indices = np.argmin(low_windows, axis=1)
-
-    # 创建窗口起始位置
-    starts = np.arange(n_records - window_size + 1)
-
-    # 转换为绝对索引
-    high_abs_indices = starts + high_max_indices
-    low_abs_indices = starts + low_min_indices
-
-    # 使用bincount统计每个位置出现的次数
-    high_counts = np.bincount(high_abs_indices, minlength=n_records)
-    low_counts = np.bincount(low_abs_indices, minlength=n_records)
-
-    # 筛选
-    wave_highs = np.where(high_counts >= window_size)[0].tolist()
-    wave_lows = np.where(low_counts >= window_size)[0].tolist()
-
-    return wave_highs, wave_lows
 
 
 def _check2_week_macd(klines: pd.DataFrame):
@@ -135,8 +98,6 @@ def _check2_week_macd(klines: pd.DataFrame):
     :param klines:  K线数据
     :return:
     """
-
-    klines = klines.tail(100)
     # 计算周线快线
     last_close = klines['close'].iloc[-1]
 
@@ -164,11 +125,20 @@ def _check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
     :param period:  周期
     :return: bool
     """
+    # 不管什么情况 只要低点到今天的高点 都是红柱
+    macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
+    MACD_values = macd_info.macd_diff()
+    macd_slice = MACD_values.iloc[lowIndex:]
+    rMacdCnt = (macd_slice >= 0).sum()
+    latest_MACD = MACD_values.iloc[-1]
+    if rMacdCnt >= 3:
+        return True, 999  # 说明有一小片红柱
+    if latest_MACD > 0:
+        return True, 998  # 说明MACD 当日高点 是红柱
 
-    # 获取最后一天的 close 值 容忍度
+    # 容忍度  MACD 不为红柱的情况
     last_close = klines['close'].iloc[-1]
-
-    macd_ext = last_close if period == 'd' else [last_close, last_close]
+    macd_ext = [last_close, last_close]
     # 构造所需要的收盘价
     close_prices = pd.concat([pd.Series(list(klines['close'])), pd.Series(macd_ext)], ignore_index=True)
     # 计算MACD
@@ -176,26 +146,21 @@ def _check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
     # MACD 柱
     MACD_values = macd_info.macd_diff()
     # DIF  快线 白线
-    # DIF_line = macd_info.macd()
+    DIF_line = macd_info.macd()
     # DEA  黄线 慢线
     # DEA_line = macd_info.macd_signal()
     # 获取最后一天的值
     # latest_DEA = DEA_line.iloc[-1]
-    # latest_DIF = DIF_line.iloc[-1]
+    latest_DIF = DIF_line.iloc[-1]
     latest_MACD = MACD_values.iloc[-1]
-
-    # 提取MACD 低点到今天的红柱数量
-    macd_slice = MACD_values.iloc[lowIndex - 1:-1]  # 包括最后一天 最后一天是加的
-    rMacdCnt = (macd_slice >= 0).sum()
-    # 如果是全红 就直接返回
-    if rMacdCnt == len(klines) - lowIndex:
-        if rMacdCnt >= 3:
-            rMacdCnt = 999  # 全红
-            return True, rMacdCnt
-
-    if latest_MACD < 0:
-        return False, rMacdCnt
-    return True, rMacdCnt
+    if period == 'd':
+        if latest_MACD < 0:
+            return False, 0
+    else:
+        if latest_DIF < 0 and latest_MACD < 0:
+            return False, 0
+        # 周线 要判断日线的 MACD 是不是在水下 在水下直接返回false
+    return True, 1
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -222,6 +187,8 @@ def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_toleranc
         return False
     # 计算跌幅
     drop_percent = ((open_price - close_price) / open_price) * 100
+    if drop_percent > 4:
+        return True
     if drop_percent < min_drop_percent:
         return False
     if close_price == low_price:
@@ -285,37 +252,40 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
     :return:  不匹配返回空列表  匹配返回  list [low,high, rcnt]  low 前波段低点  high 前波段高点   rcnt 前波段高点 到 分析当天的红柱数量
     """
     # 早期返回条件
-    if klines.empty or len(klines) < _RECORD_COUNT:
+    if klines.empty:
         return []
-    df_klines = klines.tail(_RECORD_COUNT)
+    kline_len = len(klines)
     try:
         # ============ 1. 基础条件检查 ============
-        today, yesterday = df_klines.iloc[-1], df_klines.iloc[-2]
+        today, yesterday = klines.iloc[-1], klines.iloc[-2]
         # 昨日高点不能高于今日高点（今日需突破）
         if yesterday['high'] > today['high']:
             return []
         today_high = today['high']
         today_low = today['low']
         pre_low = yesterday['low']
-
-        for n in [2, 3]:
+        highs = klines['high']
+        lows = klines['low']
+        for n in [1, 2]:
             # 获取波段的 高低点
-            highs_index, lows_index = _getWavePoints(df_klines, n, 'high', 'low')
-
+            highs_index, _ = find_peaks(highs.values, distance=n)
+            lows_index, _ = find_peaks(-lows.values, distance=n)
+            highs_index = highs_index.tolist()
+            lows_index = lows_index.tolist()
             # 波段数量小于3
             if len(lows_index) < 3 or len(highs_index) < 3:
                 continue
-
             # 先判断 今天的高点 是否大于第一个波段
-            lastHighPrice = df_klines.iloc[highs_index[-1]]['high']
+            lastHighPrice = klines['high'].iloc[highs_index[-1]]
             if today_high < lastHighPrice:
                 continue
 
             # 先确定最低点
-            lowPrice = df_klines.iloc[lows_index[-1]]['low']
+            lowPrice = klines.iloc[lows_index[-1]]['low']
             tmpLow = min(today_low, pre_low)
             if tmpLow < lowPrice:
-                lows_index.append(_RECORD_COUNT - 1)
+                difference = 1 if tmpLow == today_low else 2
+                lows_index.append(len(klines) - difference)
 
             # 确定前低  和 最低
             lowPoints = lows_index[::-1]  # 翻转list  ::-1  一般情况下更快
@@ -323,8 +293,8 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
             curLowIndex = preLowIndex = highIndex = -1
             # 确定波段的最低点
             for current, next_item in zip(lowPoints, lowPoints[1:]):
-                curLow = df_klines.iloc[current]['low']
-                nextLow = df_klines.iloc[next_item]['low']
+                curLow = klines.iloc[current]['low']
+                nextLow = klines.iloc[next_item]['low']
                 if curLow < nextLow:
                     curLowIndex = current
                     break
@@ -345,31 +315,31 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
                     preLowIndex = nIndex
                     break
 
-            curLowPrice = df_klines.iloc[curLowIndex]['low']
-            preLowPrice = df_klines.iloc[preLowIndex]['low']
+            curLowPrice = klines.iloc[curLowIndex]['low']
+            preLowPrice = klines.iloc[preLowIndex]['low']
             # 判断破底翻
             if curLowPrice > preLowPrice:
                 continue
             # 前波段高点
-            highPrice = df_klines.iloc[highIndex]['high']
+            highPrice = klines.iloc[highIndex]['high']
             # 判断过前波段高点
             if today_high < highPrice:
                 continue
 
             # 判断前面波段的高点到昨天是最高点
-            sub_check_high = df_klines.iloc[highIndex + 1: _RECORD_COUNT - 1]
+            sub_check_high = klines.iloc[highIndex + 1: kline_len - 1]
             sub_high_price = sub_check_high['high'].max()
             if highPrice <= sub_high_price:
                 continue
 
-            macd_ok, rcnt = _check_MACD(df_klines, curLowIndex, period)
+            macd_ok, rcnt = _check_MACD(klines, curLowIndex, period)
             if not macd_ok:
                 return []
             ret_list = [float(curLowPrice), float(highPrice), int(rcnt)]
             if period == 'w':
                 return ret_list
             # 获取创新低的天数
-            sub_check_low = df_klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
+            sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
             if curLowPrice <= n_day_low_price:
                 return ret_list
@@ -398,14 +368,9 @@ def analyze_an_stock(code, period='d') -> list:
     if not ret_list:  # 列表为空
         return []
     _append_result(ret_list, code, end_data_list, period)
-
-    if period == 'w':
-        return ret_list
-    # 检查周线的快线在水上
-    df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
-    is_valid = _check2_week_macd(df_weekly)
-
-    if not is_valid and ret_list[-1] < 999:
-        return []
-    ret_list[-1] = 998
+    if period == 'd':
+        df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
+        is_valid = _check2_week_macd(df_weekly)
+        if not is_valid:
+            return []
     return ret_list
