@@ -29,7 +29,7 @@ def analyze_A_stocks(period):
 
     for data in ret_results:
         cursor.execute('''
-            INSERT OR REPLACE INTO xshare.db 
+            INSERT OR REPLACE INTO as1
             VALUES (?, ?, ?, ?, ?, ?)
         ''', data)
 

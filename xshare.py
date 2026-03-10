@@ -135,8 +135,9 @@ def _check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
         return True, 999  # 说明有一小片红柱
     if latest_MACD > 0:
         return True, 998  # 说明MACD 当日高点 是红柱
-
-    # 容忍度  MACD 不为红柱的情况
+    if period == 'd':
+        return False, 0
+    # 日线0容忍度  MACD 不为红柱的情况
     last_close = klines['close'].iloc[-1]
     macd_ext = [last_close, last_close]
     # 构造所需要的收盘价
@@ -153,13 +154,8 @@ def _check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
     # latest_DEA = DEA_line.iloc[-1]
     latest_DIF = DIF_line.iloc[-1]
     latest_MACD = MACD_values.iloc[-1]
-    if period == 'd':
-        if latest_MACD < 0:
-            return False, 0
-    else:
-        if latest_DIF < 0 and latest_MACD < 0:
-            return False, 0
-        # 周线 要判断日线的 MACD 是不是在水下 在水下直接返回false
+    if latest_DIF < 0 and latest_MACD < 0:
+        return False, 0
     return True, 1
 
 
