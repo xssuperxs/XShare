@@ -1,7 +1,5 @@
 import pandas as pd
 from ta.trend import MACD
-import numpy as np
-
 import baostock as bs
 import datetime
 
@@ -133,10 +131,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # MACD 柱
     MACD_values = macd_info.macd_diff()
     latest_MACD = MACD_values.iloc[-1]
-    if latest_DIF < 0 and latest_MACD < 0:
-        return 0
-    else:
-        return 1
+    return 0 if latest_DIF < 0 and latest_MACD < 0 else 1
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
