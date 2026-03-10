@@ -113,12 +113,17 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 不管是日线 还是周线 都得新获取下 klines
     df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
     macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
-    DIF_line = macd_info.macd()
-    latest_DIF = DIF_line.iloc[-1]
+    DIF_values = macd_info.macd()
+    MACD_values = macd_info.macd_diff()
+    latest_DIF = DIF_values.iloc[-1]
+    latest_MACD = MACD_values.iloc[-1]
+
+    if latest_MACD >= 0 and latest_DIF >= 0:
+        return 998
+
+    # 构造所需要的收盘价 容忍度
     last_close = klines['close'].iloc[-1]
     list_2close = [last_close, last_close]
-
-    # 构造所需要的收盘价
     close_prices = pd.concat([pd.Series(list(klines['close'])), pd.Series(list_2close)], ignore_index=True)
     macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
     # MACD 柱
@@ -210,7 +215,7 @@ def check_highToLow(kline: pd.DataFrame, upper_shadow_pct_threshold: float = 0.6
     return is_high_low
 
 
-def check_pass_peak(klines: pd.DataFrame, period='d') -> bool:
+def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
     """
     分析K线形态  过波段高点  头肩底   只是分析 形态是否相似  形似还要神似 需要其它指标
     "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
@@ -220,14 +225,14 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> bool:
     """
     # 早期返回条件
     if klines.empty:
-        return False
+        return ()
     kline_len = len(klines)
     try:
         # ============ 1. 基础条件检查 ============
         today, yesterday = klines.iloc[-1], klines.iloc[-2]
         # 昨日高点不能高于今日高点（今日需突破）
         if yesterday['high'] > today['high']:
-            return False
+            return ()
         today_high = today['high']
         today_low = today['low']
         pre_low = yesterday['low']
@@ -299,24 +304,17 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> bool:
             if highPrice <= sub_high_price:
                 continue
             if period == 'w':
-                return True
+                return float(curLowPrice), float(highPrice)
             # 获取创新低的天数
             sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
             if curLowPrice <= n_day_low_price:
-                return True
+                return float(curLowPrice), float(highPrice)
     except Exception as e:
         # 处理其他异常
         print(f"check_pass_peak err: {e}")
-        return False
-    return False
-
-
-def _append_result(ret_list, code, end_date, period):
-    ret_list.insert(0, code)
-    ret_list.insert(3, end_date)
-    ret_list.insert(4, period)
-    return ret_list
+        return ()
+    return ()
 
 
 def analyze_an_stock(code, period='d') -> list:
@@ -324,12 +322,18 @@ def analyze_an_stock(code, period='d') -> list:
         df = _bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
     else:
         df = _bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
+
+    analyze_date = _end_date_d if period == 'd' else _end_date_w
     # 判断 形似
-    is_ok = check_pass_peak(df, period)
-    if not is_ok:
+    prices = check_pass_peak(df, period)
+    if not prices:
         return []
     # 形似 判断神似  返回神似的分数
     rcnt = _check2_pass_peak(code, df, period)
     if rcnt == 0:
         return []
-    return [111]
+    low = prices[0]
+    high = prices[1]
+    code_six = code[-6:]
+    ret_list = [code_six, low, high, analyze_date, period, rcnt]
+    return ret_list
