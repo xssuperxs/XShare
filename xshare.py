@@ -110,8 +110,12 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     if latest_MACD >= 0:
         return 998
 
+    # 从新获取周K线信息
+    if period == 'w':
+        df_weekly = klines
+    else:
+        df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
     # 不管是日线 还是周线 都得新获取下 klines
-    df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
     macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
     DIF_values = macd_info.macd()
     MACD_values = macd_info.macd_diff()
