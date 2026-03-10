@@ -8,7 +8,7 @@ import sys
 def get_last_trade_date():
     rs = bs.query_history_k_data_plus('sh.000001',
                                       fields="date,code,open,high,low,close,volume",  # 根据需要选择字段
-                                      start_date='2026-03-01',  # 可以指定一个较近的开始日期，减少数据量
+                                      start_date='2026-03-09',  # 可以指定一个较近的开始日期，减少数据量
                                       end_date='',  # 留空以获取到最新交易日
                                       frequency="d",
                                       adjustflag="3")
