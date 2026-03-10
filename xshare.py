@@ -17,7 +17,7 @@ def _bs_get_trade_date(period: str = 'd') -> tuple[str, str]:
         code='sh.000001',
         fields="date",  # 字段可调整
         start_date=start_date,  # 尽可能早的日期
-        end_date='2050-12-30',  # 未来日期确保覆盖最新数据
+        end_date='',  # 未来日期确保覆盖最新数据
         frequency=period,  # d=日线，w=周线，m=月线
         adjustflag="2"  # 复权类型：3=后复权  复权类型，默认不复权：3；1：后复权；2：前复权
     )
@@ -92,71 +92,42 @@ _start_date_w, _end_date_w = _bs_get_trade_date('w')
 _NEW_LOW_DAYS = 18
 
 
-def _check2_week_macd(klines: pd.DataFrame):
+def _check2_pass_peak(code, klines, period='d') -> int:
     """
-    检测 周线的 DIF 线 要在 水上  非常重要！！！！！ 加速段都是从水上开始的
-    :param klines:  K线数据
+    检测破底翻的 神似  一些技术指标
+    :param code:
+    :param period:
     :return:
-    """
-    # 计算周线快线
-    last_close = klines['close'].iloc[-1]
-
-    # 使用 concat 追加
-    # 原始 Series
-    close_prices = pd.Series(list(klines['close']))
-    macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
-    DIF_line = macd_info.macd()
-    latest_DIF = DIF_line.iloc[-1]
-    if latest_DIF > 0:
-        return True
-    # 计算MACD 红柱
-    new_values = [last_close, last_close]
-    close_prices = pd.concat([close_prices, pd.Series(new_values)], ignore_index=True)
-    macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
-    MACD_values = macd_info.macd_diff()
-    latest_MACD = MACD_values.iloc[-1]
-    return latest_MACD > 0
-
-
-def _check_MACD(klines: pd.DataFrame, lowIndex, period='d'):
-    """
-    :param klines:  K线数据
-    :param lowIndex: 前波段低点的索引
-    :param period:  周期
-    :return: bool
     """
     # 不管什么情况 只要低点到今天的高点 都是红柱
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()
-    macd_slice = MACD_values.iloc[lowIndex:]
-    rMacdCnt = (macd_slice >= 0).sum()
+    # 最近三条全是红柱
+    if all(x >= 0 for x in MACD_values[-3:]):
+        return 999
+    # 最后一天是红柱
     latest_MACD = MACD_values.iloc[-1]
-    if rMacdCnt >= 3:
-        return True, 999  # 说明有一小片红柱
-    if latest_MACD > 0:
-        return True, 998  # 说明MACD 当日高点 是红柱
-    if period == 'd':
-        return False, 0
-    # 日线0容忍度  MACD 不为红柱的情况
+    if latest_MACD >= 0:
+        return 998
+
+    # 不管是日线 还是周线 都得新获取下 klines
+    df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
+    macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
+    DIF_line = macd_info.macd()
+    latest_DIF = DIF_line.iloc[-1]
     last_close = klines['close'].iloc[-1]
-    macd_ext = [last_close, last_close]
+    list_2close = [last_close, last_close]
+
     # 构造所需要的收盘价
-    close_prices = pd.concat([pd.Series(list(klines['close'])), pd.Series(macd_ext)], ignore_index=True)
-    # 计算MACD
+    close_prices = pd.concat([pd.Series(list(klines['close'])), pd.Series(list_2close)], ignore_index=True)
     macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
     # MACD 柱
     MACD_values = macd_info.macd_diff()
-    # DIF  快线 白线
-    DIF_line = macd_info.macd()
-    # DEA  黄线 慢线
-    # DEA_line = macd_info.macd_signal()
-    # 获取最后一天的值
-    # latest_DEA = DEA_line.iloc[-1]
-    latest_DIF = DIF_line.iloc[-1]
     latest_MACD = MACD_values.iloc[-1]
     if latest_DIF < 0 and latest_MACD < 0:
-        return False, 0
-    return True, 1
+        return 0
+    else:
+        return 1
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -239,24 +210,24 @@ def check_highToLow(kline: pd.DataFrame, upper_shadow_pct_threshold: float = 0.6
     return is_high_low
 
 
-def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
+def check_pass_peak(klines: pd.DataFrame, period='d') -> bool:
     """
-    分析K线形态  过波段高点  头肩底
+    分析K线形态  过波段高点  头肩底   只是分析 形态是否相似  形似还要神似 需要其它指标
     "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
     :param klines:  要分析的K线数据
     :param period:  周期  d 日线  w 周线
-    :return:  不匹配返回空列表  匹配返回  list [low,high, rcnt]  low 前波段低点  high 前波段高点   rcnt 前波段高点 到 分析当天的红柱数量
+    :return:  返因TRUE
     """
     # 早期返回条件
     if klines.empty:
-        return []
+        return False
     kline_len = len(klines)
     try:
         # ============ 1. 基础条件检查 ============
         today, yesterday = klines.iloc[-1], klines.iloc[-2]
         # 昨日高点不能高于今日高点（今日需突破）
         if yesterday['high'] > today['high']:
-            return []
+            return False
         today_high = today['high']
         today_low = today['low']
         pre_low = yesterday['low']
@@ -327,22 +298,18 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> list:
             sub_high_price = sub_check_high['high'].max()
             if highPrice <= sub_high_price:
                 continue
-
-            macd_ok, rcnt = _check_MACD(klines, curLowIndex, period)
-            if not macd_ok:
-                return []
-            ret_list = [float(curLowPrice), float(highPrice), int(rcnt)]
             if period == 'w':
-                return ret_list
+                return True
             # 获取创新低的天数
             sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
             if curLowPrice <= n_day_low_price:
-                return ret_list
+                return True
     except Exception as e:
         # 处理其他异常
         print(f"check_pass_peak err: {e}")
-        return []
+        return False
+    return False
 
 
 def _append_result(ret_list, code, end_date, period):
@@ -357,16 +324,12 @@ def analyze_an_stock(code, period='d') -> list:
         df = _bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
     else:
         df = _bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
-
-    end_data_list = _end_date_d if period == 'd' else _end_date_w
-
-    ret_list = check_pass_peak(df, period)
-    if not ret_list:  # 列表为空
+    # 判断 形似
+    is_ok = check_pass_peak(df, period)
+    if not is_ok:
         return []
-    _append_result(ret_list, code, end_data_list, period)
-    if period == 'd':
-        df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
-        is_valid = _check2_week_macd(df_weekly)
-        if not is_valid:
-            return []
-    return ret_list
+    # 形似 判断神似  返回神似的分数
+    rcnt = _check2_pass_peak(code, df, period)
+    if rcnt == 0:
+        return []
+    return [111]
