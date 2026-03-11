@@ -100,38 +100,34 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 不管什么情况 只要低点到今天的高点 都是红柱
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()
-    # 最近三条全是红柱
+    DIF_values = macd_info.macd()
+    DEA_values = macd_info.macd_signal()
+    # 最近三条全是红柱 只有这个返回999 最佳状态
     if all(x >= 0 for x in MACD_values[-3:]):
         return 999
-    # 最后一天是红柱
     latest_MACD = MACD_values.iloc[-1]
+    # 当天的K线是红柱
     if latest_MACD >= 0:
-        return 998
-
-    # 从新获取周K线信息
-    if period == 'w':
-        df_weekly = klines
-    else:
-        df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
-    # 不管是日线 还是周线 都得新获取下 klines
-    macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
-    DIF_values = macd_info.macd()
-    MACD_values = macd_info.macd_diff()
+        rcnt = 998 if period == 'd' else 999
+        return rcnt
+    # 最后一天是红柱
     latest_DIF = DIF_values.iloc[-1]
-    latest_MACD = MACD_values.iloc[-1]
+    latest_DEA = DEA_values.iloc[-1]
+    if period == 'd':
+        df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
+        macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
+        DIF_values = macd_info.macd()
+        # latest_DEA = DEA_values.iloc[-1]
+        MACD_values = macd_info.macd_diff()
+        latest_MACD = MACD_values.iloc[-1]
+        latest_DIF = DIF_values.iloc[-1]
+        if latest_DIF < 0 and latest_MACD < 0:
+            return 0
+    else:
+        if latest_DIF < 0:
+            return 0
 
-    if latest_MACD >= 0 and latest_DIF >= 0:
-        return 998
-
-    # 构造所需要的收盘价 容忍度
-    last_close = klines['close'].iloc[-1]
-    list_2close = [last_close, last_close]
-    close_prices = pd.concat([pd.Series(list(klines['close'])), pd.Series(list_2close)], ignore_index=True)
-    macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
-    # MACD 柱
-    MACD_values = macd_info.macd_diff()
-    latest_MACD = MACD_values.iloc[-1]
-    return 0 if latest_DIF < 0 and latest_MACD < 0 else 1
+    return 997
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,

@@ -85,7 +85,7 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
-    test = True
+    test = False
     if test:
         print(back_test('sh.603619', '2025-12-23', period='d'))
         sys.exit(0)
