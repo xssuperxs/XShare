@@ -104,15 +104,16 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 计算日线MACD
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
-    DIF_values = macd_info.macd()  # DIF线
-    # DEA_values = macd_info.macd_signal()  # DEA线
+    # DIF_values = macd_info.macd()  # DIF线
+    DEA_values = macd_info.macd_signal()  # DEA线
 
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
     if all(x >= 0 for x in MACD_values[-3:]):
         return 999
 
     latest_MACD = MACD_values.iloc[-1]
-    latest_DIF = DIF_values.iloc[-1]
+    # latest_DIF = DIF_values.iloc[-1]
+    latest_DEA = DEA_values.iloc[-1]
 
     # 情况3: 需要检查周线级别的情况
     if period == 'd':
@@ -125,7 +126,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         latest_w_DIF = w_DIF.iloc[-1]
         # 天的MACD 最后一天红柱
         if latest_MACD >= 0:
-            return 997
+            return 998
         # 周线DIF和MACD都小于0时返回0
         if latest_w_DIF < 0 and latest_w_MACD < 0:
             return 0
@@ -136,7 +137,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
                 return 998
         return 0
     else:
-        if latest_DIF < 0 and latest_MACD < 0:
+        if latest_DEA < 0 and latest_MACD < 0:
             return 0
         # 周线
         last_kline = klines.iloc[-1]
