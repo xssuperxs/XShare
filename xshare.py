@@ -123,6 +123,9 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         w_DIF = w_macd_info.macd()
         latest_w_MACD = w_MACD.iloc[-1]
         latest_w_DIF = w_DIF.iloc[-1]
+        # 天的MACD 最后一天红柱
+        if latest_MACD >= 0:
+            return 997
         # 周线DIF和MACD都小于0时返回0
         if latest_w_DIF < 0 and latest_w_MACD < 0:
             return 0
@@ -131,9 +134,6 @@ def _check2_pass_peak(code, klines, period='d') -> int:
                 return 999
             else:
                 return 998
-        # 天的MACD 最后一天红柱
-        if latest_MACD >= 0:
-            return 997
         return 0
     else:
         if latest_DIF < 0 and latest_MACD < 0:
@@ -316,6 +316,8 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
                 continue
             if period == 'w':
                 return float(curLowPrice), float(highPrice)
+            # 获取创新高天数  要大于 11天
+            high_list = klines['high'].tolist()
             # 获取创新低的天数
             sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
