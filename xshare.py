@@ -321,7 +321,6 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
             last = high_list[-1]
             nh_days = 0   # new high
             for i in range(len(high_list) - 2, -1, -1):
-                print(high_list[i])
                 if high_list[i] <= last:
                     nh_days += 1
                     if nh_days > 10:
