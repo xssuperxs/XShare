@@ -126,19 +126,21 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         # 周线DIF和MACD都小于0时返回0
         if latest_w_DIF < 0 and latest_w_MACD < 0:
             return 0
-        if latest_w_DIF > 0 and latest_w_MACD >= 0:
-            return 999
+        if latest_w_DIF > 0:
+            if latest_w_MACD > 0:  # 周的最后一根红柱
+                return 999
+            else:
+                return 998
+        # 天的MACD 最后一天红柱
         if latest_MACD >= 0:
             return 997
         return 0
     else:
-        # 周线
-        last_kline = klines.iloc[-1]
-        if check_highToLow(last_kline):
-            return 999
         if latest_DIF < 0 and latest_MACD < 0:
             return 0
-        if latest_MACD >= 0:
+        # 周线
+        last_kline = klines.iloc[-1]
+        if check_highToLow(last_kline) or latest_MACD >= 0:
             return 999
         else:
             return 998
