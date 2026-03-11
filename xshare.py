@@ -318,6 +318,18 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
                 return float(curLowPrice), float(highPrice)
             # 获取创新高天数  要大于 11天
             high_list = klines['high'].tolist()
+            last = high_list[-1]
+            nh_days = 0   # new high
+            for i in range(len(high_list) - 2, -1, -1):
+                print(high_list[i])
+                if high_list[i] <= last:
+                    nh_days += 1
+                    if nh_days > 10:
+                        break
+                else:
+                    break  # 遇到不大于最后一个数的数就停止
+            if nh_days < 10:
+                return ()
             # 获取创新低的天数
             sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
             n_day_low_price = sub_check_low['low'].min()
