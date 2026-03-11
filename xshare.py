@@ -92,42 +92,56 @@ _NEW_LOW_DAYS = 18
 
 def _check2_pass_peak(code, klines, period='d') -> int:
     """
-    检测破底翻的 神似  一些技术指标
-    :param code:
-    :param period:
-    :return:
-    """
-    # 不管什么情况 只要低点到今天的高点 都是红柱
+       计算MACD指标得分
+       返回:
+           999 - 最近三条MACD柱线均为红柱(最佳状态)
+           998 - 日线级别当天红柱
+           999 - 周线级别当天红柱
+           997 - 其他有红柱的情况 日线不是红柱 周线符合
+           0 - 不符合
+       """
+
+    # 计算日线MACD
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
-    MACD_values = macd_info.macd_diff()
-    DIF_values = macd_info.macd()
-    DEA_values = macd_info.macd_signal()
-    # 最近三条全是红柱 只有这个返回999 最佳状态
+    MACD_values = macd_info.macd_diff()  # MACD柱状线
+    DIF_values = macd_info.macd()  # DIF线
+    # DEA_values = macd_info.macd_signal()  # DEA线
+
+    # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
     if all(x >= 0 for x in MACD_values[-3:]):
         return 999
+
     latest_MACD = MACD_values.iloc[-1]
-    # 当天的K线是红柱
-    if latest_MACD >= 0:
-        rcnt = 998 if period == 'd' else 999
-        return rcnt
-    # 最后一天是红柱
     latest_DIF = DIF_values.iloc[-1]
-    latest_DEA = DEA_values.iloc[-1]
+
+    # 情况3: 需要检查周线级别的情况
     if period == 'd':
+        # 获取周线数据并计算MACD
         df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
-        macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
-        DIF_values = macd_info.macd()
-        # latest_DEA = DEA_values.iloc[-1]
-        MACD_values = macd_info.macd_diff()
-        latest_MACD = MACD_values.iloc[-1]
-        latest_DIF = DIF_values.iloc[-1]
+        w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
+        w_MACD = w_macd_info.macd_diff()
+        w_DIF = w_macd_info.macd()
+        latest_w_MACD = w_MACD.iloc[-1]
+        latest_w_DIF = w_DIF.iloc[-1]
+        # 周线DIF和MACD都小于0时返回0
+        if latest_w_DIF < 0 and latest_w_MACD < 0:
+            return 0
+        if latest_w_DIF > 0 and latest_w_MACD >= 0:
+            return 999
+        if latest_MACD >= 0:
+            return 997
+        return 0
+    else:
+        # 周线
+        last_kline = klines.iloc[-1]
+        if check_highToLow(last_kline):
+            return 999
         if latest_DIF < 0 and latest_MACD < 0:
             return 0
-    else:
-        if latest_DIF < 0:
-            return 0
-
-    return 997
+        if latest_MACD >= 0:
+            return 999
+        else:
+            return 998
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
