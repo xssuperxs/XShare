@@ -104,7 +104,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 计算日线MACD
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
-    # DIF_values = macd_info.macd()  # DIF线
+    DIF_values = macd_info.macd()  # DIF线
     DEA_values = macd_info.macd_signal()  # DEA线
 
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
@@ -112,7 +112,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         return 999
 
     latest_MACD = MACD_values.iloc[-1]
-    # latest_DIF = DIF_values.iloc[-1]
+    latest_DIF = DIF_values.iloc[-1]
     latest_DEA = DEA_values.iloc[-1]
 
     # 情况3: 需要检查周线级别的情况
@@ -137,7 +137,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
                 return 998
         return 0
     else:
-        if latest_DEA < 0 and latest_MACD < 0:
+        if latest_DEA < 0 and latest_MACD < 0 and latest_DIF < 0:
             return 0
         # 周线
         last_kline = klines.iloc[-1]
@@ -320,7 +320,7 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
             # 获取创新高天数  要大于 11天
             high_list = klines['high'].tolist()
             last = high_list[-1]
-            nh_days = 0   # new high
+            nh_days = 0  # new high
             for i in range(len(high_list) - 2, -1, -1):
                 if high_list[i] <= last:
                     nh_days += 1
