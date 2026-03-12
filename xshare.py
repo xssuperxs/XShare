@@ -4,6 +4,7 @@ import baostock as bs
 import datetime
 
 from scipy.signal import find_peaks
+import numpy as np
 
 # 登陆baostock
 lg = bs.login()
@@ -100,7 +101,6 @@ def _check2_pass_peak(code, klines, period='d') -> int:
            997 - 其他有红柱的情况 日线不是红柱 周线符合
            0 - 不符合
        """
-
     # 计算日线MACD
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
@@ -110,11 +110,17 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
     if all(x >= 0 for x in MACD_values[-3:]):
         return 999
+    # 是否是仙人指路
+    last_kline = klines.iloc[-1]
+    is_high_to_low = check_highToLow(last_kline)
+    if is_high_to_low:
+        return 999
 
     latest_MACD = MACD_values.iloc[-1]
     latest_DIF = DIF_values.iloc[-1]
     latest_DEA = DEA_values.iloc[-1]
-
+    # # 判断是否在0轴附近（绝对值小于容忍度）
+    # return abs(current_dif) < tolerance
     # 情况3: 需要检查周线级别的情况
     if period == 'd':
         # 获取周线数据并计算MACD
@@ -122,29 +128,20 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
         w_MACD = w_macd_info.macd_diff()
         w_DIF = w_macd_info.macd()
+        w_DEA = w_macd_info.macd_signal()
         latest_w_MACD = w_MACD.iloc[-1]
         latest_w_DIF = w_DIF.iloc[-1]
-        # 天的MACD 最后一天红柱
+        latest_w_DEA = w_DEA.iloc[-1]
+        if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
+            return 0
         if latest_MACD >= 0:
             return 998
-        # 周线DIF和MACD都小于0时返回0
-        if latest_w_DIF < 0 and latest_w_MACD < 0:
-            return 0
-        if latest_w_DIF > 0:
-            if latest_w_MACD > 0:  # 周的最后一根红柱
-                return 999
-            else:
-                return 998
-        return 0
     else:
         if latest_DEA < 0 and latest_MACD < 0 and latest_DIF < 0:
             return 0
-        # 周线
-        last_kline = klines.iloc[-1]
-        if check_highToLow(last_kline) or latest_MACD >= 0:
+        if latest_MACD >= 0:
             return 999
-        else:
-            return 998
+    return 1
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -324,11 +321,11 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
             for i in range(len(high_list) - 2, -1, -1):
                 if high_list[i] <= last:
                     nh_days += 1
-                    if nh_days > 10:
+                    if nh_days > 5:
                         break
                 else:
                     break  # 遇到不大于最后一个数的数就停止
-            if nh_days < 10:
+            if nh_days < 5:
                 return ()
             # 获取创新低的天数
             sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
