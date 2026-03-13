@@ -101,6 +101,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
            997 - 其他有红柱的情况 日线不是红柱 周线符合
            0 - 不符合
        """
+
     # 计算日线MACD
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
@@ -119,15 +120,9 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     latest_MACD = MACD_values.iloc[-1]
     latest_DIF = DIF_values.iloc[-1]
     latest_DEA = DEA_values.iloc[-1]
-    if period == 'w':
-        if latest_MACD >= 0:
-            return 999
-        return 1
-    # # 判断是否在0轴附近（绝对值小于容忍度）
-    # return abs(current_dif) < tolerance
-    # 情况3: 需要检查周线级别的情况
     if period == 'd':
-        # 获取周线数据并计算MACD
+        if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
+            return 0
         df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
         w_MACD = w_macd_info.macd_diff()
@@ -138,7 +133,12 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         latest_w_DEA = w_DEA.iloc[-1]
         if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
             return 0
-        return 1
+    else:
+        if latest_MACD > 0:
+            return 999
+        if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
+            return 0
+    return 997
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
