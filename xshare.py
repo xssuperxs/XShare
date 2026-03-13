@@ -114,11 +114,15 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     last_kline = klines.iloc[-1]
     is_high_to_low = check_highToLow(last_kline)
     if is_high_to_low:
-        return 999
+        return 998  # 仙人指路
 
     latest_MACD = MACD_values.iloc[-1]
     latest_DIF = DIF_values.iloc[-1]
     latest_DEA = DEA_values.iloc[-1]
+    if period == 'w':
+        if latest_MACD >= 0:
+            return 999
+        return 1
     # # 判断是否在0轴附近（绝对值小于容忍度）
     # return abs(current_dif) < tolerance
     # 情况3: 需要检查周线级别的情况
@@ -134,14 +138,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         latest_w_DEA = w_DEA.iloc[-1]
         if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
             return 0
-        if latest_MACD >= 0:
-            return 998
-    else:
-        if latest_DEA < 0 and latest_MACD < 0 and latest_DIF < 0:
-            return 0
-        if latest_MACD >= 0:
-            return 999
-    return 1
+        return 1
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
