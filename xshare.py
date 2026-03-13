@@ -105,9 +105,9 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 计算日线MACD
     macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
-    DIF_values = macd_info.macd()  # DIF线
-    DEA_values = macd_info.macd_signal()  # DEA线
-
+    latest_DIF = macd_info.macd().iloc[-1]  # DIF线
+    latest_DEA = macd_info.macd_signal().iloc[-1]  # DEA线
+    latest_MACD = MACD_values.iloc[-1]
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
     if all(x >= 0 for x in MACD_values[-3:]):
         return 999
@@ -117,20 +117,14 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     if is_high_to_low:
         return 998  # 仙人指路
 
-    latest_MACD = MACD_values.iloc[-1]
-    latest_DIF = DIF_values.iloc[-1]
-    latest_DEA = DEA_values.iloc[-1]
     if period == 'd':
         if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
             return 0
         df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
-        w_MACD = w_macd_info.macd_diff()
-        w_DIF = w_macd_info.macd()
-        w_DEA = w_macd_info.macd_signal()
-        latest_w_MACD = w_MACD.iloc[-1]
-        latest_w_DIF = w_DIF.iloc[-1]
-        latest_w_DEA = w_DEA.iloc[-1]
+        latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
+        latest_w_DIF = w_macd_info.macd().iloc[-1]
+        latest_w_DEA = w_macd_info.macd_signal().iloc[-1]
         if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
             return 0
     else:
