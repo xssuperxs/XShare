@@ -111,6 +111,8 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
     if all(x >= 0 for x in MACD_values[-3:]):
         return 999
+
+    # 如果是日线 判断 过前高10天  MACD   还是红柱 前两天 返回999
     # 是否是仙人指路
     last_kline = klines.iloc[-1]
     is_high_to_low = check_highToLow(last_kline)
@@ -118,8 +120,8 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         return 998  # 仙人指路
 
     if period == 'd':
-        if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
-            return 0
+        # if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
+        #     return 0
         df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
         latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
