@@ -92,36 +92,28 @@ _NEW_LOW_DAYS = 18
 
 
 def _check2_pass_peak(code, klines, period='d') -> int:
-    """
-       计算MACD指标得分
-       返回:
-           999 - 最近三条MACD柱线均为红柱(最佳状态)
-           998 - 日线级别当天红柱
-           999 - 周线级别当天红柱
-           997 - 其他有红柱的情况 日线不是红柱 周线符合
-           0 - 不符合
-       """
-
-    # 计算日线MACD
-    macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
+    # 获取MACD 信息  容忍度两天
+    last_close = klines['close'].iloc[-1]
+    close_price = pd.concat([klines['close'], pd.Series([last_close, last_close])], ignore_index=True)
+    # 获取MACD信息
+    macd_info = MACD(close=pd.Series(close_price), window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
     latest_DIF = macd_info.macd().iloc[-1]  # DIF线
     latest_DEA = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_MACD = MACD_values.iloc[-1]
+    if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
+        return 0
+
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
-    if all(x >= 0 for x in MACD_values[-3:]):
+    if all(x >= 0 for x in MACD_values[-5:-2]):
         return 999
-
-    # 如果是日线 判断 过前高10天  MACD   还是红柱 前两天 返回999
-    # 是否是仙人指路
-    last_kline = klines.iloc[-1]
-    is_high_to_low = check_highToLow(last_kline)
-    if is_high_to_low:
-        return 998  # 仙人指路
-
+    if period == 'w':
+        rel_last_macd = MACD_values.iloc[-3]
+        if rel_last_macd > 0:
+            return 999
+        else:
+            return 998
     if period == 'd':
-        # if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
-        #     return 0
         df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
         latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
@@ -129,12 +121,9 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         latest_w_DEA = w_macd_info.macd_signal().iloc[-1]
         if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
             return 0
-    else:
-        if latest_MACD > 0:
-            return 999
-        if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
+        if latest_MACD < 0:  # 容忍度1天 还不是红的 直接返回FALSE
             return 0
-    return 997
+        return 998
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -217,12 +206,11 @@ def check_highToLow(kline: pd.DataFrame, upper_shadow_pct_threshold: float = 0.6
     return is_high_low
 
 
-def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
+def check_pass_peak(klines: pd.DataFrame) -> tuple:
     """
-    分析K线形态  过波段高点  头肩底   只是分析 形态是否相似  形似还要神似 需要其它指标
+    分析K线形态  过波段高点  头肩底   只是分析 形态是否相似  形似还要神似 需要二次过滤
     "date","open","high","low","close","volume" DataFrame需要用的列名  date 可以不包括
     :param klines:  要分析的K线数据
-    :param period:  周期  d 日线  w 周线
     :return:  返因TRUE
     """
     # 早期返回条件
@@ -305,26 +293,13 @@ def check_pass_peak(klines: pd.DataFrame, period='d') -> tuple:
             sub_high_price = sub_check_high['high'].max()
             if highPrice <= sub_high_price:
                 continue
-            if period == 'w':
-                return float(curLowPrice), float(highPrice)
-            # 获取创新高天数  要大于 11天
-            high_list = klines['high'].tolist()
-            last = high_list[-1]
-            nh_days = 0  # new high
-            for i in range(len(high_list) - 2, -1, -1):
-                if high_list[i] <= last:
-                    nh_days += 1
-                    if nh_days > 5:
-                        break
-                else:
-                    break  # 遇到不大于最后一个数的数就停止
-            if nh_days < 5:
-                return ()
-            # 获取创新低的天数
-            sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
-            n_day_low_price = sub_check_low['low'].min()
-            if curLowPrice <= n_day_low_price:
-                return float(curLowPrice), float(highPrice)
+
+            return float(curLowPrice), float(highPrice)
+            # # 获取创新低的天数
+            # sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
+            # n_day_low_price = sub_check_low['low'].min()
+            # if curLowPrice <= n_day_low_price:
+            #     return float(curLowPrice), float(highPrice)
     except Exception as e:
         # 处理其他异常
         print(f"check_pass_peak err: {e}")
@@ -340,7 +315,7 @@ def analyze_an_stock(code, period='d') -> list:
 
     analyze_date = _end_date_d if period == 'd' else _end_date_w
     # 判断 形似
-    prices = check_pass_peak(df, period)
+    prices = check_pass_peak(df)
     if not prices:
         return []
     # 形似 判断神似  返回神似的分数
