@@ -42,5 +42,7 @@ if __name__ == '__main__':
         if weekday_now == 4:
             subprocess.run([venv_python, '/root/work/code/as1.py', 'w'])
 
+        # 2次分析
+        subprocess.run([venv_python, '/root/work/code/as2.py'])
 
 # 30 22 * * * /root/work/code/.venv/bin/python /root/work/code/cron.py >> /root/work/log/cron.log 2>&1
