@@ -92,6 +92,7 @@ _NEW_LOW_DAYS = 18
 
 
 def _check2_pass_peak(code, klines, period='d') -> int:
+    all_red = False
     # 获取MACD 信息  容忍度两天
     last_close = klines['close'].iloc[-1]
     close_price = pd.concat([klines['close'], pd.Series([last_close, last_close])], ignore_index=True)
@@ -106,10 +107,9 @@ def _check2_pass_peak(code, klines, period='d') -> int:
 
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
     if all(x >= 0 for x in MACD_values[-5:-2]):
-        return 999
+        all_red = True
     if period == 'w':
-        rel_last_macd = MACD_values.iloc[-3]
-        if rel_last_macd > 0:
+        if all_red or MACD_values.iloc[-3] > 0:
             return 999
         else:
             return 998
@@ -119,11 +119,16 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
         latest_w_DIF = w_macd_info.macd().iloc[-1]
         latest_w_DEA = w_macd_info.macd_signal().iloc[-1]
+        if all_red:
+            if latest_w_DIF < 0 and latest_w_DEA < 0:
+                return 998
+            else:
+                return 999
         if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
             return 0
-        if latest_MACD < 0:  # 容忍度1天 还不是红的 直接返回FALSE
+        if latest_MACD < 0:  # 容忍度2天 还不是红的 直接返回FALSE
             return 0
-        return 998
+    return 997
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
