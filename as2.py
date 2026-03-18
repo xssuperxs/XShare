@@ -4,14 +4,16 @@ import sqlite3
 
 last_date = cron.get_last_trade_date()
 
+print(last_date)
 # 连接数据库
-conn = sqlite3.connect('/root/work/data/xshare.db')
+# conn = sqlite3.connect('/root/work/data/xshare.db')
+conn = sqlite3.connect('D:\\Users\\Administrator\\Desktop\\xshare.db')
 cursor = conn.cursor()
 
 # 查询as1表的所有数据
 cursor.execute('SELECT * FROM as1')
 rows = cursor.fetchall()
-
+print(rows)
 # 1 999的 直接提取走
 # 冲高回落 平头阴 提取走
 # 破前低的要提走
