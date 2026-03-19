@@ -329,6 +329,5 @@ def analyze_an_stock(code, period='d') -> list:
         return []
     low = prices[0]
     high = prices[1]
-    code_six = code[-6:]
-    ret_list = [code_six, low, high, analyze_date, period, rcnt]
+    ret_list = [code, low, high, analyze_date, period, rcnt]
     return ret_list
