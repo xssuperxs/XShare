@@ -48,9 +48,9 @@ def bs_get_stock_codes() -> list[str]:
     return ret_cods
 
 
-def _bs_get_stock_hist(code: str, period: str = 'd',
-                       start_date: str = None,
-                       end_date: str = None) -> pd.DataFrame:
+def bs_get_stock_hist(code: str, period: str = 'd',
+                      start_date: str = None,
+                      end_date: str = None) -> pd.DataFrame:
     """
     类方法：获取股票历史数据
     """
@@ -114,7 +114,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         else:
             return 998
     if period == 'd':
-        df_weekly = _bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
+        df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
         latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
         latest_w_DIF = w_macd_info.macd().iloc[-1]
@@ -141,10 +141,10 @@ def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_toleranc
     :return:  bool
     """
     # 基础检查
-    open_price = kline['open']
-    close_price = kline['close']
-    high_price = kline['high']
-    low_price = kline['low']
+    open_price = kline['open'].iloc[0]
+    close_price = kline['close'].iloc[0]
+    high_price = kline['high'].iloc[0]
+    low_price = kline['low'].iloc[0]
     # 必须是阴线
     if close_price >= open_price:
         return False
@@ -177,10 +177,10 @@ def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_toleranc
 
 def check_highToLow(kline: pd.DataFrame, upper_shadow_pct_threshold: float = 0.6,
                     min_amplitude_pct: float = 0.01) -> bool:
-    open_price = kline['open']
-    close_price = kline['close']
-    high_price = kline['high']
-    low_price = kline['low']
+    open_price = kline['open'].iloc[0]
+    close_price = kline['close'].iloc[0]
+    high_price = kline['high'].iloc[0]
+    low_price = kline['low'].iloc[0]
 
     # 计算总振幅
     total_range = high_price - low_price
@@ -312,9 +312,9 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
 
 def analyze_an_stock(code, period='d') -> list:
     if period == 'w':
-        df = _bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
+        df = bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
     else:
-        df = _bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
+        df = bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
 
     analyze_date = _end_date_d if period == 'd' else _end_date_w
     # 判断 形似
