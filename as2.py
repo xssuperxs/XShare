@@ -13,7 +13,11 @@ cursor = conn.cursor()
 # 查询as1表的所有数据
 cursor.execute('SELECT * FROM as1')
 rows = cursor.fetchall()
-print(rows)
+for row in rows:
+    # record = rows
+    print(type(row))
+    print(row)  # 每条记录是字典格式
+    # 可以通过字段名访问：record['字段名']
 # 1 999的 直接提取走
 # 冲高回落 平头阴 提取走
 # 破前低的要提走
