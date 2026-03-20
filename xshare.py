@@ -132,7 +132,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
-                       min_drop_percent=1.2) -> bool:
+                       min_drop_percent=1.0) -> bool:
     """
     :param kline:   K线
     :param body_threshold:   实体部分 百分比 0.70  = 70%
