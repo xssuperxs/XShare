@@ -157,10 +157,10 @@ def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_toleranc
     drop_percent = ((open_price - close_price) / open_price) * 100
     if drop_percent > 4:
         return True
-    if drop_percent < min_drop_percent:
-        return False
     if close_price == low_price:
         return True
+    if drop_percent < min_drop_percent:
+        return False
 
     # 计算实体比例
     body_size = open_price - close_price  # 阴线实体大小
