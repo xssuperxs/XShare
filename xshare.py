@@ -93,9 +93,9 @@ _NEW_LOW_DAYS = 18
 
 def _check2_pass_peak(code, klines, period='d') -> int:
     all_red = False
-    # 获取MACD 信息  容忍度两天
-    last_close = klines['close'].iloc[-1]
-    close_price = pd.concat([klines['close'], pd.Series([last_close, last_close])], ignore_index=True)
+    # 获取MACD 信息  容忍度日线 1 天 周线2天
+    append_close = [klines['close'].iloc[-1]] * 2
+    close_price = pd.concat([klines['close'], pd.Series(append_close)], ignore_index=True)
     # 获取MACD信息
     macd_info = MACD(close=pd.Series(close_price), window_fast=12, window_slow=26, window_sign=9)
     MACD_values = macd_info.macd_diff()  # MACD柱状线
@@ -106,10 +106,10 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         return 0
 
     # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
-    if all(x >= 0 for x in MACD_values[-5:-2]):
+    if all(x >= 0 for x in MACD_values[-3:]):
         all_red = True
     if period == 'w':
-        if all_red or MACD_values.iloc[-3] > 0:
+        if MACD_values.iloc[-1] > 0:
             return 999
         else:
             return 998
@@ -119,6 +119,9 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
         latest_w_DIF = w_macd_info.macd().iloc[-1]
         latest_w_DEA = w_macd_info.macd_signal().iloc[-1]
+        # 判断日线 全红
+        # 周线 MACD 是红
+        # 在水上
         if all_red:
             if latest_w_DIF < 0 and latest_w_DEA < 0:
                 return 998
