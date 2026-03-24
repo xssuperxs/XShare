@@ -4,7 +4,6 @@ import baostock as bs
 import datetime
 
 from scipy.signal import find_peaks
-import numpy as np
 
 # 登陆baostock
 lg = bs.login()
