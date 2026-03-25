@@ -92,43 +92,56 @@ _NEW_LOW_DAYS = 18
 
 def _check2_pass_peak(code, klines, period='d') -> int:
     all_red = False
-    # 获取MACD 信息  容忍度日线 1 天 周线2天
+
+    # 获取MACD信息，容忍度日线1天，周线2天
+    # 扩展close序列用于MACD计算
     append_close = [klines['close'].iloc[-1]] * 2
     close_price = pd.concat([klines['close'], pd.Series(append_close)], ignore_index=True)
+
     # 获取MACD信息
     macd_info = MACD(close=pd.Series(close_price), window_fast=12, window_slow=26, window_sign=9)
-    MACD_values = macd_info.macd_diff()  # MACD柱状线
-    latest_DIF = macd_info.macd().iloc[-1]  # DIF线
-    latest_DEA = macd_info.macd_signal().iloc[-1]  # DEA线
-    latest_MACD = MACD_values.iloc[-1]
-    if latest_MACD < 0 and latest_DIF < 0 and latest_DEA < 0:
+    macd_histogram = macd_info.macd_diff()  # MACD柱状线
+    latest_dif = macd_info.macd().iloc[-1]  # DIF线
+    latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
+    latest_macd = macd_histogram.iloc[-1]
+
+    # 检查是否为水下
+    if latest_macd < 0 and latest_dif < 0 and latest_dea < 0:
         return 0
 
-    # 情况1: 最近三条MACD柱线都是红柱(>=0) - 最佳状态
-    if all(x >= 0 for x in MACD_values[-3:]):
+    # 检查最近三条MACD柱线是否都是红柱(>=0)
+    if all(x >= 0 for x in macd_histogram.iloc[-5:-2]):
         all_red = True
+
+    # 周线处理
     if period == 'w':
-        if MACD_values.iloc[-1] > 0:
+        # 检查第三根柱线是否为红
+        if macd_histogram.iloc[-3] > 0:
             return 999
-        else:
-            return 998
+        return 998
+
+    # 日线处理
     if period == 'd':
+        # 获取周线数据并计算MACD
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
-        latest_w_MACD = w_macd_info.macd_diff().iloc[-1]
-        latest_w_DIF = w_macd_info.macd().iloc[-1]
-        latest_w_DEA = w_macd_info.macd_signal().iloc[-1]
-        # 判断日线 全红
-        # 周线 MACD 是红
-        # 在水上
+        w_macd = w_macd_info.macd_diff().iloc[-1]
+        w_dif = w_macd_info.macd().iloc[-1]
+        w_dea = w_macd_info.macd_signal().iloc[-1]
+
+        # 判断日线全红的情况
         if all_red:
-            if latest_w_DIF < 0 and latest_w_DEA < 0:
+            # 周线MACD在水下
+            if w_dif < 0 and w_dea < 0:
                 return 998
-            else:
-                return 999
-        if latest_w_DIF < 0 and latest_w_MACD < 0 and latest_w_DEA < 0:
+            return 999
+
+        # 检查周线是否全部在水下
+        if w_dif < 0 and w_macd < 0 and w_dea < 0:
             return 0
-        if latest_MACD < 0:  # 容忍度2天 还不是红的 直接返回FALSE
+
+        # 容忍度2天还不是红的，直接返回0
+        if latest_macd < 0:
             return 0
     return 997
 
