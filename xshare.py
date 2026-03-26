@@ -116,7 +116,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     # 周线处理
     if period == 'w':
         # 检查第三根柱线是否为红
-        if macd_histogram.iloc[-3] > 0:
+        if macd_histogram.iloc[-3] > 0 or latest_dif > 0 or latest_dea > 0:
             return 999
         return 998
 
