@@ -86,8 +86,6 @@ def bs_get_stock_hist(code: str, period: str = 'd',
 _start_date_d, _end_date_d = _bs_get_trade_date('d')
 _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
-# 创新低天数
-_NEW_LOW_DAYS = 18
 
 
 def _check2_pass_peak(code, klines, period='d') -> int:
@@ -232,9 +230,8 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
     :return:  返因TRUE
     """
     # 早期返回条件
-    if klines.empty:
+    if klines.empty or len(klines) < 30:
         return ()
-    kline_len = len(klines)
     try:
         # ============ 1. 基础条件检查 ============
         today, yesterday = klines.iloc[-1], klines.iloc[-2]
@@ -311,13 +308,7 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
             sub_high_price = sub_check_high['high'].max()
             if highPrice <= sub_high_price:
                 continue
-
             return float(curLowPrice), float(highPrice)
-            # # 获取创新低的天数
-            # sub_check_low = klines.iloc[curLowIndex - _NEW_LOW_DAYS: curLowIndex]
-            # n_day_low_price = sub_check_low['low'].min()
-            # if curLowPrice <= n_day_low_price:
-            #     return float(curLowPrice), float(highPrice)
     except Exception as e:
         # 处理其他异常
         print(f"check_pass_peak err: {e}")
