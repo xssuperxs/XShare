@@ -2,6 +2,7 @@ import cron
 import xshare
 import sqlite3
 import pandas as pd
+import os
 
 last_date = cron.get_last_trade_date()
 
@@ -34,38 +35,39 @@ def check_today_kline(stock_data: tuple = ()) -> bool:
 
 check_today_kline()
 
-# 查询as1表的所有数据
-cursor.execute('SELECT * FROM as1')
+result_list = []
+
+# 查询as1表的所有数据 888 表示已经二次筛选 符合条件的
+cursor.execute('SELECT * FROM as1 WHERE rcnt != 888')
 rows = cursor.fetchall()
 for row in rows:
-
     if check_today_kline(row):
+        code_str = row[0]
         # 执行更新语句
-        cursor.execute("UPDATE as1 SET rcnt = ? WHERE code = ?", (888, row[0]))
+        cursor.execute("UPDATE as1 SET rcnt = ? WHERE code = ?", (888, code_str))
         # 提交事务
         conn.commit()
-    # 更新RCNT 为 888
-    # record = rows
-    print(type(row[0]))
-    print(row)  # 每条记录是字典格式
-    # 可以通过字段名访问：record['字段名']
-# 1 999的 直接提取走
-# 冲高回落 平头阴 提取走
-# 破前低的要提走
-# 超过三个月的要提走
+        last_six = code_str[-6:] if len(code_str) >= 6 else code_str
+        result_list.append(last_six)
 
-# 把符合条件的 全改成 rcnt 888
-# 每天要复盘这些股票 其它的不用复盘
-
-# 获取列名
-cursor.execute("PRAGMA table_info(as1)")
-columns = [column[1] for column in cursor.fetchall()]
-print("列名:", columns)
-
-# 显示所有数据
-print(f"数据行数: {len(rows)}")
-for row in rows:
-    print(row)
+cursor.execute("""INSERT INTO as2 (ana_date, result) VALUES (?, ?)""", (last_date, result_list))
 
 # 关闭连接
 conn.close()
+
+# 目标目录
+data_dir = "/root/work/data"
+filename = f"{last_date}.txt"
+filepath = os.path.join(data_dir, filename)
+
+# 确保目录存在
+os.makedirs(data_dir, exist_ok=True)
+
+# 写入新文件
+with open(filepath, 'w', encoding='utf-8') as f:
+    for item in result_list:
+        f.write(f"{item}\n")
+# 开始上传 上传成功后 删除文件
+
+if os.path.exists(filepath):
+    os.remove(filepath)
