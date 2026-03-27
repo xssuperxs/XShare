@@ -87,7 +87,6 @@ _start_date_d, _end_date_d = _bs_get_trade_date('d')
 _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
 
-
 def _check2_pass_peak(code, klines, period='d') -> int:
     all_red = False
 
@@ -304,7 +303,7 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
                 continue
 
             # 判断前面波段的高点到昨天是最高点
-            sub_check_high = klines.iloc[highIndex + 1: kline_len - 1]
+            sub_check_high = klines.iloc[highIndex + 1: len(klines) - 1]
             sub_high_price = sub_check_high['high'].max()
             if highPrice <= sub_high_price:
                 continue
