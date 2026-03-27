@@ -3,6 +3,7 @@ import xshare
 import sqlite3
 import pandas as pd
 import os
+import json
 
 last_date = cron.get_last_trade_date()
 
@@ -14,6 +15,8 @@ cursor = conn.cursor()
 
 
 def check_today_kline(stock_data: tuple = ()) -> bool:
+    if not stock_data:
+        return False
     if stock_data[5] == 999:
         return True
     df = xshare.bs_get_stock_hist(stock_data[0], 'd', last_date, last_date)
@@ -33,14 +36,17 @@ def check_today_kline(stock_data: tuple = ()) -> bool:
     return months_diff > 3
 
 
-check_today_kline()
-
 result_list = []
 
 # 查询as1表的所有数据 888 表示已经二次筛选 符合条件的
 cursor.execute('SELECT * FROM as1 WHERE rcnt != 888')
 rows = cursor.fetchall()
+i = 0
 for row in rows:
+    i = i + 1
+    print(i)
+    if i > 20:
+        break
     if check_today_kline(row):
         code_str = row[0]
         # 执行更新语句
@@ -50,13 +56,15 @@ for row in rows:
         last_six = code_str[-6:] if len(code_str) >= 6 else code_str
         result_list.append(last_six)
 
-cursor.execute("""INSERT INTO as2 (ana_date, result) VALUES (?, ?)""", (last_date, result_list))
+result_str = json.dumps(result_list)  # 转换为 '[1, 2, 3, 4, 5]'
+cursor.execute("""INSERT INTO as2 (ana_date, result) VALUES (?, ?)""", (last_date, result_str))
 
 # 关闭连接
 conn.close()
 
 # 目标目录
-data_dir = "/root/work/data"
+data_dir = "D:\\Users\\Administrator\\Desktop\\"
+# data_dir = "/root/work/data"
 filename = f"{last_date}.txt"
 filepath = os.path.join(data_dir, filename)
 
