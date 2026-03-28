@@ -7,7 +7,6 @@ import json
 
 last_date = cron.get_last_trade_date()
 
-print(last_date)
 # 连接数据库
 # conn = sqlite3.connect('/root/work/data/xshare.db')
 conn = sqlite3.connect('D:\\Users\\Administrator\\Desktop\\xshare.db')
@@ -43,10 +42,6 @@ cursor.execute('SELECT * FROM as1 WHERE rcnt != 888')
 rows = cursor.fetchall()
 i = 0
 for row in rows:
-    i = i + 1
-    print(i)
-    if i > 20:
-        break
     if check_today_kline(row):
         code_str = row[0]
         # 执行更新语句
@@ -55,10 +50,11 @@ for row in rows:
         conn.commit()
         last_six = code_str[-6:] if len(code_str) >= 6 else code_str
         result_list.append(last_six)
+        break
 
 result_str = json.dumps(result_list)  # 转换为 '[1, 2, 3, 4, 5]'
-cursor.execute("""INSERT INTO as2 (ana_date, result) VALUES (?, ?)""", (last_date, result_str))
-
+cursor.execute("INSERT INTO as2 (ana_date, result) VALUES (?, ?)", (last_date, result_str))
+conn.commit()
 # 关闭连接
 conn.close()
 
