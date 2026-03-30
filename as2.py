@@ -4,6 +4,7 @@ import sqlite3
 import pandas as pd
 import os
 import json
+import wecallback as we
 
 last_date = cron.get_last_trade_date()
 
@@ -60,7 +61,7 @@ conn.close()
 
 # 目标目录
 data_dir = "D:\\Users\\Administrator\\Desktop\\"
-# data_dir = "/root/work/data"
+# data_dir = "/root/work/data/"
 filename = f"{last_date}.txt"
 filepath = os.path.join(data_dir, filename)
 
@@ -71,7 +72,11 @@ os.makedirs(data_dir, exist_ok=True)
 with open(filepath, 'w', encoding='utf-8') as f:
     for item in result_list:
         f.write(f"{item}\n")
-# 开始上传 上传成功后 删除文件
 
-if os.path.exists(filepath):
-    os.remove(filepath)
+# 开始上传 上传成功后 删除文件
+res = we.send_wechat_message('LiuKeSheng', '1', 'file', filepath)
+if res.get('errcode') == 0:
+    if os.path.exists(filepath):
+        os.remove(filepath)
+else:
+    print('send_wechat_message error!')
