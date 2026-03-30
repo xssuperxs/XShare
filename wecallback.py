@@ -22,7 +22,7 @@ AGENT_ID = 1000003  # 你的应用ID
 wxcpt = WXBizMsgCrypt(TOKEN, ENCODING_AES_KEY, CORP_ID)
 
 
-def send_wechat_message(toUser, content, msgType='text', filename=None):
+def send_wechat_message(toUser, content, msgType='text'):
     """
     给企业微信成员发送消息（支持文本消息和文本文件）
     Args:
@@ -32,8 +32,6 @@ def send_wechat_message(toUser, content, msgType='text', filename=None):
             - 'text': 发送文本消息（默认）
             - 'file': 发送文件（需要提供文件路径）
             - 'text_as_file': 将文本内容作为文件发送
-        filename: 当 msgType='text_as_file' 时，指定文件名（可选）
-
     Returns:
         dict: 发送结果
     """
@@ -47,30 +45,12 @@ def send_wechat_message(toUser, content, msgType='text', filename=None):
     access_token = token_res.get('access_token')
 
     # 如果是文件消息或文本作为文件
-    if msgType == 'file' or msgType == 'text_as_file':
-        file_path = None
-        temp_file = None
+    if msgType == 'file':
         try:
-            # 处理文件路径
-            if msgType == 'file':
-                # 直接发送已存在的文件
-                if not os.path.exists(content):
-                    return {"error": f"文件不存在: {content}"}
-                file_path = content
-
-            elif msgType == 'text_as_file':
-                # 将文本内容写入临时文件
-                temp_file = tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', suffix='.txt', delete=False)
-                temp_file.write(content)
-                temp_file.close()
-                file_path = temp_file.name
-
-                # 如果指定了文件名，重命名临时文件
-                if filename:
-                    new_path = os.path.join(os.path.dirname(file_path), filename)
-                    os.rename(file_path, new_path)
-                    file_path = new_path
-
+            # 直接发送已存在的文件
+            if not os.path.exists(content):
+                return {"error": f"文件不存在: {content}"}
+            file_path = content
             # 上传文件
             upload_url = f"https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={access_token}&type=file"
 
@@ -102,9 +82,7 @@ def send_wechat_message(toUser, content, msgType='text', filename=None):
             return response.json()
 
         finally:
-            # 清理临时文件
-            if temp_file and os.path.exists(file_path):
-                os.unlink(file_path)
+            pass
 
     # 发送文本消息
     else:
