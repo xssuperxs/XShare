@@ -88,37 +88,22 @@ _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
 
 def _check2_pass_peak(code, klines, period='d') -> int:
-    all_red = False
-
-    # 获取MACD信息，容忍度日线1天，周线2天
-    # 扩展close序列用于MACD计算
-    append_close = [klines['close'].iloc[-1]] * 2
-    close_price = pd.concat([klines['close'], pd.Series(append_close)], ignore_index=True)
-
-    # 获取MACD信息
-    macd_info = MACD(close=pd.Series(close_price), window_fast=12, window_slow=26, window_sign=9)
+    macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
     macd_histogram = macd_info.macd_diff()  # MACD柱状线
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
-
-    # 检查是否为水下
-    if latest_macd < 0 and latest_dif < 0 and latest_dea < 0:
-        return 0
-
-    # 检查最近三条MACD柱线是否都是红柱(>=0)
-    if all(x >= 0 for x in macd_histogram.iloc[-5:-2]):
-        all_red = True
-
     # 周线处理
     if period == 'w':
         # 检查第三根柱线是否为红
-        if macd_histogram.iloc[-3] > 0 or latest_dif > 0 or latest_dea > 0:
+        if latest_macd > 0 or latest_dif > 0 or latest_dea > 0:
             return 999
-        return 998
-
+        return 0
     # 日线处理
     if period == 'd':
+        # 检查最近三条MACD柱线是否都是红柱(>=0)
+        if all(x >= 0 for x in macd_histogram.iloc[-3:]):
+            return 999
         # 获取周线数据并计算MACD
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
@@ -126,21 +111,10 @@ def _check2_pass_peak(code, klines, period='d') -> int:
         w_dif = w_macd_info.macd().iloc[-1]
         w_dea = w_macd_info.macd_signal().iloc[-1]
 
-        # 判断日线全红的情况
-        if all_red:
-            # 周线MACD在水下
-            if w_dif < 0 and w_dea < 0:
-                return 998
-            return 999
-
         # 检查周线是否全部在水下
         if w_dif < 0 and w_macd < 0 and w_dea < 0:
             return 0
-
-        # 容忍度2天还不是红的，直接返回0
-        if latest_macd < 0:
-            return 0
-    return 997
+        return 999
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
