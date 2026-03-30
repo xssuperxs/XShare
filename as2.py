@@ -52,7 +52,7 @@ def analyze_2():
             conn.commit()
             last_six = code_str[-6:] if len(code_str) >= 6 else code_str
             result_list.append(last_six)
-            break
+
 
     result_str = json.dumps(result_list)  # 转换为 '[1, 2, 3, 4, 5]'
     # 把所有数据插入到 as2 库中
