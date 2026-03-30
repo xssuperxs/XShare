@@ -74,7 +74,7 @@ with open(filepath, 'w', encoding='utf-8') as f:
         f.write(f"{item}\n")
 
 # 开始上传 上传成功后 删除文件
-res = we.send_wechat_message('LiuKeSheng', '1', 'file', filepath)
+res = we.send_wechat_message('LiuKeSheng', filepath, 'file')
 if res.get('errcode') == 0:
     if os.path.exists(filepath):
         os.remove(filepath)
