@@ -2,7 +2,6 @@ import baostock as bs
 import pandas as pd
 from datetime import datetime
 import subprocess
-import sys
 
 
 def get_last_trade_date():
@@ -47,4 +46,4 @@ if __name__ == '__main__':
 
 
 
-# 30 22 * * * /root/work/code/.venv/bin/python /root/work/code/cron.py >> /root/work/log/cron.log 2>&1
+
