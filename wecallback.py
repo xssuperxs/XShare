@@ -80,12 +80,10 @@ def send_wechat_message(toUser, content, msgType='text'):
 
             response = requests.post(send_url, json=data)
             return response.json()
-
         finally:
             pass
-
     # 发送文本消息
-    else:
+    if msgType == 'text':
         send_url = f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={access_token}"
 
         data = {

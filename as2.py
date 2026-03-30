@@ -5,12 +5,16 @@ import pandas as pd
 import os
 import json
 import wecallback as we
+import platform
 
 last_date = cron.get_last_trade_date()
+var_sistem = platform.system()
+
+db_path = r'D:\Users\Administrator\Desktop\xshare.db' if var_sistem == "Windows" else '/root/work/data/xshare.db'
+ana_res_dir = r'D:\Users\Administrator\Desktop' if var_sistem == "Windows" else '/root/work/data/'
 
 # 连接数据库
-# conn = sqlite3.connect('/root/work/data/xshare.db')
-conn = sqlite3.connect('D:\\Users\\Administrator\\Desktop\\xshare.db')
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 
@@ -54,19 +58,19 @@ for row in rows:
         break
 
 result_str = json.dumps(result_list)  # 转换为 '[1, 2, 3, 4, 5]'
-cursor.execute("INSERT INTO as2 (ana_date, result) VALUES (?, ?)", (last_date, result_str))
+# 把所有数据插入到 as2 库中
+cursor.execute("""INSERT OR REPLACE INTO as2 (ana_date, result) VALUES (?, ?)""", (last_date, result_str))
 conn.commit()
 # 关闭连接
 conn.close()
 
 # 目标目录
-data_dir = "D:\\Users\\Administrator\\Desktop\\"
-# data_dir = "/root/work/data/"
 filename = f"{last_date}.txt"
-filepath = os.path.join(data_dir, filename)
+filepath = os.path.join(ana_res_dir, filename)
 
+print(filepath)
 # 确保目录存在
-os.makedirs(data_dir, exist_ok=True)
+os.makedirs(ana_res_dir, exist_ok=True)
 
 # 写入新文件
 with open(filepath, 'w', encoding='utf-8') as f:
