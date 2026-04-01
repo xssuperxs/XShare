@@ -10,7 +10,7 @@ import platform
 last_date = cron.get_last_trade_date()
 is_windows = platform.system() == "Windows"
 db_path = r'D:\Users\Administrator\Desktop\xshare.db' if is_windows else '/root/work/data/xshare.db'
-ana_res_dir = r'D:\Users\Administrator\Desktop' if is_windows else '/root/work/data/'
+ana_res_dir = r'D:\Users\Administrator\Desktop' if is_windows else '/root/work/data'
 
 
 def check_today_kline(stock_data: tuple = ()) -> bool:
@@ -52,7 +52,6 @@ def analyze_2():
             conn.commit()
             last_six = code_str[-6:] if len(code_str) >= 6 else code_str
             result_list.append(last_six)
-
 
     result_str = json.dumps(result_list)  # 转换为 '[1, 2, 3, 4, 5]'
     # 把所有数据插入到 as2 库中

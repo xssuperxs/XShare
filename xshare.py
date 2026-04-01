@@ -88,33 +88,19 @@ _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
 
 def _check2_pass_peak(code, klines, period='d') -> int:
-    macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
+    if period == 'd':
+        df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
+        close_prices = df_weekly['close']
+    else:
+        close_prices = klines['close']
+    macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
     macd_histogram = macd_info.macd_diff()  # MACD柱状线
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
-    # 周线处理
-    if period == 'w':
-        # 检查第三根柱线是否为红
-        if latest_macd > 0 or latest_dif > 0 or latest_dea > 0:
-            return 999
-        return 0
-    # 日线处理
-    if period == 'd':
-        # 检查最近三条MACD柱线是否都是红柱(>=0)
-        if all(x >= 0 for x in macd_histogram.iloc[-3:]):
-            return 999
-        # 获取周线数据并计算MACD
-        df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
-        w_macd_info = MACD(close=df_weekly['close'], window_fast=12, window_slow=26, window_sign=9)
-        w_macd = w_macd_info.macd_diff().iloc[-1]
-        w_dif = w_macd_info.macd().iloc[-1]
-        w_dea = w_macd_info.macd_signal().iloc[-1]
-
-        # 检查周线是否全部在水下
-        if w_dif < 0 and w_macd < 0 and w_dea < 0:
-            return 0
+    if latest_macd > 0 or latest_dif > 0 or latest_dea > 0:
         return 999
+    return 0
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
