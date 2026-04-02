@@ -16,8 +16,8 @@ ana_res_dir = r'D:\Users\Administrator\Desktop' if is_windows else '/root/work/d
 def check_today_kline(stock_data: tuple = ()) -> bool:
     if not stock_data:
         return False
-    if stock_data[5] == 999:
-        return True
+    # if stock_data[5] == 999:
+    #     return True
     df = xshare.bs_get_stock_hist(stock_data[0], 'd', last_date, last_date)
     if len(df) == 0:
         return False
