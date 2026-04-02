@@ -24,6 +24,7 @@ def check_today_kline(stock_data: tuple = ()) -> bool:
     # 判断仙人指路 或 平头阴线
     if xshare.check_highToLow(df) or xshare.check_real_bearish(df):
         return True
+    # 小于前波段低点
     if df['low'].iloc[0] < stock_data[1]:
         return True
 
