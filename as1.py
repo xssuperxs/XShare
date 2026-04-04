@@ -38,12 +38,9 @@ def analyze_A_stocks(period):
     # 连接数据库
     conn = sqlite3.connect('/root/work/data/xshare.db')
     cursor = conn.cursor()
-    # 把整体数据写到 as2
-    ana_date = cron.get_last_trade_date()
     # 把所有数据插入到 as2 库中
-    cursor.execute("""INSERT OR REPLACE INTO as2 (ana_date, result) VALUES (?, ?)""", (ana_date, ret_codes))
+    cursor.execute("""INSERT OR REPLACE INTO as2 (ana_date, result) VALUES (?, ?)""", (last_date, ret_codes))
     conn.commit()
-
     # 把详细数据写到数据库中 as1
     for data in ret_results:
         cursor.execute('''
