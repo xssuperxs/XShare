@@ -27,15 +27,11 @@ def get_last_trade_date():
 
 # subprocess.run() 会等待子进程执行完成才继续执行后续代码：
 if __name__ == '__main__':
-    today = datetime.now().strftime("%Y-%m-%d")
     bs.login()
     last_trade_day = get_last_trade_date()
     bs.logout()
-    if today != last_trade_day:
-        exit(0)
     venv_python = "/root/work/code/.venv/bin/python"
     weekday_now = datetime.now().weekday()
-
     if weekday_now < 5:  # 礼拜四之前都这样操作
         subprocess.run([venv_python, '/root/work/code/as1.py', 'd'])
         if weekday_now == 4:
