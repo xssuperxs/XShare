@@ -16,8 +16,6 @@ ana_res_dir = r'D:\Users\Administrator\Desktop' if is_windows else '/root/work/d
 def check_today_kline(stock_data: tuple = ()) -> bool:
     if not stock_data:
         return False
-    # if stock_data[5] == 999:
-    #     return True
     df = xshare.bs_get_stock_hist(stock_data[0], 'd', last_date, last_date)
     if len(df) == 0:
         return False
@@ -27,7 +25,6 @@ def check_today_kline(stock_data: tuple = ()) -> bool:
     # 小于前波段低点
     if df['low'].iloc[0] < stock_data[1]:
         return True
-
     # 判断两个日期 大否大于三月
     today_date = pd.to_datetime(df['date'].iloc[0])
     ana_date = pd.to_datetime(stock_data[3])
