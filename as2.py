@@ -31,6 +31,7 @@
 #     # 计算月份差
 #     months_diff = (ana_date.year - today_date.year) * 12 + (ana_date.month - today_date.month)
 #     return months_diff > 3
+      # 成交量大于昨天的3倍
 #
 #
 # def analyze_2():
