@@ -205,6 +205,7 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
         today_high = today['high']
         today_low = today['low']
         pre_low = yesterday['low']
+        pre_high = yesterday['high']
         highs = klines['high']
         lows = klines['low']
         for n in [1, 2]:
@@ -263,10 +264,11 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
                 continue
             # 前波段高点
             highPrice = klines.iloc[highIndex]['high']
+            if pre_high > highPrice:
+                continue
             # 判断过前波段高点
             if today_high < highPrice:
                 continue
-
             # 判断前面波段的高点到昨天是最高点
             sub_check_high = klines.iloc[highIndex + 1: len(klines) - 1]
             sub_high_price = sub_check_high['high'].max()
