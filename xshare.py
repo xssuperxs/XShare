@@ -264,6 +264,7 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
                 continue
             # 前波段高点
             highPrice = klines.iloc[highIndex]['high']
+            # 判断 昨天不能过 今天刚过
             if pre_high > highPrice:
                 continue
             # 判断过前波段高点
