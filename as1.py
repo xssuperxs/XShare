@@ -36,7 +36,7 @@ def analyze_A_stocks(period):
         print("analyze_A error count:" + str(nError))
 
     # 连接数据库
-    conn = sqlite3.connect('/root/work/data/xshare.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     # 把所有数据插入到 as2 库中
     str_list = str(ret_codes)
