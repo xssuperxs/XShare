@@ -91,11 +91,11 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     if period == 'd':
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         close_prices = df_weekly['close']
-        macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
-        macd_last_5 = macd_info.macd_diff().tail(5)
-        all_red = (macd_last_5 > 0).all()
-        if all_red:
-            return 999
+        # macd_info = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
+        # macd_last_5 = macd_info.macd_diff().tail(5)
+        # all_red = (macd_last_5 > 0).all()
+        # if all_red:
+        #     return 999
     else:
         close_prices = klines['close']
     macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
@@ -103,8 +103,12 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
-    if latest_macd > 0 or latest_dif > 0 or latest_dea > 0:
-        return 999
+    if period == 'd':
+        if latest_macd > 0 or latest_dif > 0:
+            return 999
+    else:
+        if latest_macd > 0 or latest_dif > 0 or latest_dea > 0:
+            return 999
     return 0
 
 
