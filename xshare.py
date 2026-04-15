@@ -104,7 +104,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
     if period == 'd':
-        return 999 if latest_dif > 0 or latest_dea > 0 else 0
+        return 999 if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else 0
     return 999
 
 
