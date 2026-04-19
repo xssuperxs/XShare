@@ -53,7 +53,10 @@ def analyze_A_stocks(period):
     conn.close()
     # 把每天分析好的数据 发送到VX
     # 文件名
+
     filename = f"{last_date}.txt"
+    if period == 'w':
+        filename = f"{last_date}_w.txt"
     filepath = os.path.join(ana_res_dir, filename)
     # 确保目录存在
     os.makedirs(ana_res_dir, exist_ok=True)
