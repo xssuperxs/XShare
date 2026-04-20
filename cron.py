@@ -32,12 +32,8 @@ if __name__ == '__main__':
     bs.logout()
     venv_python = "/root/work/code/.venv/bin/python"
     weekday_now = datetime.now().weekday()
-    if weekday_now < 5:  # 礼拜四之前都这样操作
-        subprocess.run([venv_python, '/root/work/code/as1.py', 'd'])
+    period = 'd'
+    if weekday_now < 5:  # 0代表礼拜一
         if weekday_now == 4:
-            subprocess.run([venv_python, '/root/work/code/as1.py', 'w'])
-
-
-
-
-
+            period = 'w'
+        subprocess.run([venv_python, '/root/work/code/as1.py', period])
