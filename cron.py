@@ -31,6 +31,7 @@ if __name__ == '__main__':
     last_trade_day = get_last_trade_date()
     bs.logout()
     today = datetime.now().strftime('%Y-%m-%d')
+    # 预防节假日
     if today != last_trade_day:
         exit(0)
     venv_python = "/root/work/code/.venv/bin/python"
