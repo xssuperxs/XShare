@@ -160,3 +160,22 @@ def callback():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8181, debug=True)
+ # filename = f"{last_date}.txt"
+ #    if period == 'w':
+ #        filename = f"{last_date}_w.txt"
+ #    filepath = os.path.join(ana_res_dir, filename)
+ #    # 确保目录存在
+ #    os.makedirs(ana_res_dir, exist_ok=True)
+ #
+ #    # 写入新文件
+ #    with open(filepath, 'w', encoding='utf-8') as f:
+ #        for item in ret_codes:
+ #            f.write(f"{item}\n")
+ #
+ #    # 开始上传 上传成功后 删除文件
+ #    res = we.send_wechat_message('LiuKeSheng', filepath, 'file')
+ #    if res.get('errcode') == 0:
+ #        if os.path.exists(filepath):
+ #            os.remove(filepath)
+ #    else:
+ #        print('send_wechat_message error!')

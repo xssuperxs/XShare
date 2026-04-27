@@ -8,7 +8,6 @@ from scipy.signal import find_peaks
 # 登陆baostock
 lg = bs.login()
 
-
 def _bs_get_trade_date(period: str = 'd') -> tuple[str, str]:
     start_date = (datetime.date.today() - datetime.timedelta(weeks=120)).strftime('%Y-%m-%d')
     rs = bs.query_history_k_data_plus(
@@ -23,6 +22,8 @@ def _bs_get_trade_date(period: str = 'd') -> tuple[str, str]:
     while (rs.error_code == '0') & rs.next():
         data_list.append(rs.get_row_data())
     df = pd.DataFrame(data_list, columns=rs.fields)
+    if df.empty:
+        return "0", "0"
     start_date = df['date'].iloc[-110]
     end_date = df['date'].iloc[-1]
     return start_date, end_date
@@ -302,3 +303,4 @@ def analyze_an_stock(code, period='d') -> list:
     high = prices[1]
     ret_list = [code, low, high, analyze_date, period, rcnt]
     return ret_list
+
