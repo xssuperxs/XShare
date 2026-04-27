@@ -16,7 +16,6 @@ def save_ana_data(date, result, period):
         cursor.execute("""INSERT OR REPLACE INTO as2 (ana_date, result, period) VALUES (?, ?, ?)""",
                        (date, result, period))
         conn.commit()
-        conn.close()
     except Exception as e:
         # 其他未知错误
         print(f"发生未知错误: {e}")
