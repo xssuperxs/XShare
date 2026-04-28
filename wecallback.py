@@ -1,11 +1,9 @@
-from flask import Flask, request, Response
+from flask import Flask, request
 import xml.etree.ElementTree as ET
-import time
 from WXBizMsgCrypt import WXBizMsgCrypt
-
 import requests
+import db
 import os
-import tempfile
 
 # 导入企业微信加解密库
 app = Flask(__name__)
@@ -143,16 +141,25 @@ def callback():
                 return "success"
 
             # ========== 新增：以普通文本形式输出接收到的消息 ==========
-            # 处理文本消息
+            # 处理用户发来的文本消息
             if msg_type.text == 'text':
                 # 获取发送者和内容
                 from_user = root.find('FromUserName').text
+                # 没有找到用户
+                if not db.check_user(from_user):
+                    send_wechat_message(from_user, "没找到用户信息 请联系VX：32135", 'text')
+                    return "success"
+
                 # 查找用户是否在数据库中 没有直接返回错误
                 content = root.find('Content').text  # 这里收到的内容
-                # 在这里处理你的业务逻辑
-                # 例如：生成回复内容
-                res = send_wechat_message(from_user, "1234", 'text')
-                print(res)
+                # 创建文件获取到文件路径
+                file_path = db.get_ana_text(content)
+                res = send_wechat_message('LiuKeSheng', file_path, 'file')
+                # 发送成功清理临时文件
+                if res.get('errcode') == 0:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                return "success"
         except Exception as e:
             print(f"处理消息出错: {e}")
             return "success"
@@ -160,22 +167,3 @@ def callback():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8181, debug=True)
- # filename = f"{last_date}.txt"
- #    if period == 'w':
- #        filename = f"{last_date}_w.txt"
- #    filepath = os.path.join(ana_res_dir, filename)
- #    # 确保目录存在
- #    os.makedirs(ana_res_dir, exist_ok=True)
- #
- #    # 写入新文件
- #    with open(filepath, 'w', encoding='utf-8') as f:
- #        for item in ret_codes:
- #            f.write(f"{item}\n")
- #
- #    # 开始上传 上传成功后 删除文件
- #    res = we.send_wechat_message('LiuKeSheng', filepath, 'file')
- #    if res.get('errcode') == 0:
- #        if os.path.exists(filepath):
- #            os.remove(filepath)
- #    else:
- #        print('send_wechat_message error!')
