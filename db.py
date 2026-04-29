@@ -6,8 +6,6 @@ is_windows = platform.system() == "Windows"
 db_path = r'D:\Users\Administrator\Desktop\xshare.db' if is_windows else '/root/work/data/xshare.db'
 ana_res_dir = r'D:\Users\Administrator\Desktop' if is_windows else '/root/work/data'
 
-ret_last_date = ''
-
 
 def save_ana_data(date, result_list, period):
     result = ', '.join(str(item) for item in result_list)
@@ -83,7 +81,7 @@ def get_ana_text(date):
     if ret_data is None:
         return None
     data_list = [int(x) for x in ret_data.split(',')]
-    filename = f"{ret_last_date}_{period}.txt"
+    filename = f"{date}_{period}.txt"
     filepath = os.path.join(ana_res_dir, filename)
     os.makedirs(ana_res_dir, exist_ok=True)
     # 写入新文件

@@ -154,7 +154,7 @@ def callback():
                 content = root.find('Content').text  # 这里收到的内容
                 # 创建文件获取到文件路径
                 file_path = db.get_ana_text(content)
-                res = send_wechat_message('LiuKeSheng', file_path, 'file')
+                res = send_wechat_message(from_user, file_path, 'file')
                 # 发送成功清理临时文件
                 if res.get('errcode') == 0:
                     if os.path.exists(file_path):
