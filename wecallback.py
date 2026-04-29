@@ -154,6 +154,9 @@ def callback():
                 content = root.find('Content').text  # 这里收到的内容
                 # 创建文件获取到文件路径
                 file_path = db.get_ana_text(content)
+                if file_path is None:
+                    send_wechat_message(from_user, "没有可用数据 请检查输入的日期 格式2020-01-01", 'text')
+                    return "success"
                 res = send_wechat_message(from_user, file_path, 'file')
                 # 发送成功清理临时文件
                 if res.get('errcode') == 0:
