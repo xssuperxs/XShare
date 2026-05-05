@@ -8,6 +8,7 @@ from scipy.signal import find_peaks
 # 登陆baostock
 lg = bs.login()
 
+
 def _bs_get_trade_date(period: str = 'd') -> tuple[str, str]:
     start_date = (datetime.date.today() - datetime.timedelta(weeks=120)).strftime('%Y-%m-%d')
     rs = bs.query_history_k_data_plus(
@@ -276,7 +277,7 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
             sub_high_price = sub_check_high['high'].max()
             if highPrice <= sub_high_price:
                 continue
-            return float(curLowPrice), float(highPrice)
+            return curLowIndex, highIndex
     except Exception as e:
         # 处理其他异常
         print(f"check_pass_peak err: {e}")
@@ -299,8 +300,5 @@ def analyze_an_stock(code, period='d') -> list:
     rcnt = _check2_pass_peak(code, df, period)
     if rcnt == 0:
         return []
-    low = prices[0]
-    high = prices[1]
-    ret_list = [code, low, high, analyze_date, period, rcnt]
+    ret_list = [code, prices[0], prices[1], analyze_date, period, rcnt]
     return ret_list
-

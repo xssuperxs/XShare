@@ -147,7 +147,7 @@ def callback():
                 from_user = root.find('FromUserName').text
                 # 没有找到用户
                 if not db.check_user(from_user):
-                    send_wechat_message(from_user, "没找到用户信息 请联系VX：32135", 'text')
+                    send_wechat_message(from_user, "没有查询资格 VX：32135", 'text')
                     return "success"
 
                 # 查找用户是否在数据库中 没有直接返回错误
