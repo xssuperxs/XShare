@@ -300,21 +300,22 @@ def analyze_an_stock(code, period='d') -> list:
     if not prices:
         return []
 
-    # 判断 新高 新低
-    lowIndex = prices[0]
-    highIndex = len(df) - 1
+    if period == 'd':
+        # 判断 新高 新低
+        lowIndex = prices[0]
+        highIndex = len(df) - 1
 
-    low_price = df.iloc[lowIndex]['low']
-    high_price = df.iloc[highIndex]['high']
-    low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
-    high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
-    # print(low_list)
-    # print(high_list)
-    minLow = low_list.min()
-    maxHigh = high_list.max()
+        low_price = df.iloc[lowIndex]['low']
+        high_price = df.iloc[highIndex]['high']
+        low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
+        high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
+        # print(low_list)
+        # print(high_list)
+        minLow = low_list.min()
+        maxHigh = high_list.max()
 
-    if not (low_price == minLow and maxHigh == high_price):
-        return []
+        if not (low_price == minLow and maxHigh == high_price):
+            return []
 
     # 形似 判断神似  返回神似的分数
     rcnt = _check2_pass_peak(code, df, period)
