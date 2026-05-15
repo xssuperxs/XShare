@@ -286,6 +286,9 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
 
 
 def analyze_an_stock(code, period='d') -> list:
+    PASS_HIGH_DAYS = 8
+    PASS_LOW_DAYS = 21
+
     if period == 'w':
         df = bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
     else:
@@ -296,9 +299,28 @@ def analyze_an_stock(code, period='d') -> list:
     prices = check_pass_peak(df)
     if not prices:
         return []
+
+    # 判断 新高 新低
+    lowIndex = prices[0]
+    highIndex = len(df) - 1
+
+    low_price = df.iloc[lowIndex]['low']
+    high_price = df.iloc[highIndex]['high']
+    low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
+    high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
+    # print(low_list)
+    # print(high_list)
+    minLow = low_list.min()
+    maxHigh = high_list.max()
+
+    if not (low_price == minLow and maxHigh == high_price):
+        return []
+
     # 形似 判断神似  返回神似的分数
     rcnt = _check2_pass_peak(code, df, period)
     if rcnt == 0:
         return []
+
+    # 判断新低 新高天数
     ret_list = [code, prices[0], prices[1], analyze_date, period, rcnt]
     return ret_list

@@ -58,4 +58,5 @@ if __name__ == '__main__':
     # 先更新需要的包
     update_packets()
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
+    # p_period = 'd'
     analyze_A_stocks(p_period)
