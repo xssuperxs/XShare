@@ -105,9 +105,7 @@ def _check2_pass_peak(code, klines, period='d') -> int:
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
-    if period == 'd':
-        return 999 if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else 0
-    return 999
+    return 999 if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else 0
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -286,8 +284,8 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
 
 
 def analyze_an_stock(code, period='d') -> list:
-    PASS_HIGH_DAYS = 8
-    PASS_LOW_DAYS = 21
+    PASS_HIGH_DAYS = 8 if period == 'd' else 3
+    PASS_LOW_DAYS = 21 if period == 'd' else 5
 
     if period == 'w':
         df = bs_get_stock_hist(code, period, _start_date_w, _end_date_w)
@@ -300,22 +298,21 @@ def analyze_an_stock(code, period='d') -> list:
     if not prices:
         return []
 
-    if period == 'd':
-        # 判断 新高 新低
-        lowIndex = prices[0]
-        highIndex = len(df) - 1
+    # 判断 新高 新低
+    lowIndex = prices[0]
+    highIndex = len(df) - 1
 
-        low_price = df.iloc[lowIndex]['low']
-        high_price = df.iloc[highIndex]['high']
-        low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
-        high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
-        # print(low_list)
-        # print(high_list)
-        minLow = low_list.min()
-        maxHigh = high_list.max()
+    low_price = df.iloc[lowIndex]['low']
+    high_price = df.iloc[highIndex]['high']
+    low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
+    high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
+    # print(low_list)
+    # print(high_list)
+    minLow = low_list.min()
+    maxHigh = high_list.max()
 
-        if not (low_price == minLow and maxHigh == high_price):
-            return []
+    if not (low_price == minLow and maxHigh == high_price):
+        return []
 
     # 形似 判断神似  返回神似的分数
     rcnt = _check2_pass_peak(code, df, period)
