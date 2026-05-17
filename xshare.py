@@ -89,7 +89,7 @@ _start_date_d, _end_date_d = _bs_get_trade_date('d')
 _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
 
-def _check2_pass_peak(code, klines, period='d') -> int:
+def _check_week_mack(code, klines, period='d') -> int:
     if period == 'd':
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         close_prices = df_weekly['close']
@@ -310,7 +310,7 @@ def analyze_an_stock(code, period='d') -> list:
         return []
 
     # 形似 判断神似  返回神似的分数
-    rcnt = _check2_pass_peak(code, df, period)
+    rcnt = _check_week_mack(code, df, period)
     if rcnt == 0:
         return []
 
