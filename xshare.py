@@ -95,6 +95,10 @@ def _check_week_mack(code, klines, period='d') -> int:
         close_prices = df_weekly['close']
     else:
         close_prices = klines['close']
+        # 周线容忍两周
+        last_two = close_prices.iloc[-2:]
+        close_prices = pd.concat([close_prices, last_two])
+
     macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
     macd_histogram = macd_info.macd_diff()  # MACD柱状线
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
