@@ -93,9 +93,11 @@ def _check_week_macd(code, klines, period='d') -> int:
     if period == 'd':
         macd_info_d = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
         macd_histogram = macd_info_d.macd_diff()  # MACD柱状线
-        macd_recent_5 = macd_histogram.iloc[-5:]
-        all_positive = (macd_recent_5 > 0).all()
-        if all_positive:
+        macd_recent_3 = macd_histogram.iloc[-3:]
+        all_positive = (macd_recent_3 > 0).all()
+        # latest_dif_d = macd_info_d.macd().iloc[-1]  # DIF线
+        # latest_dea_d = macd_info_d.macd_signal().iloc[-1]  # DEA线
+        if all_positive:  # and (latest_dif_d < 0 and latest_dea_d ):
             return 999
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         close_prices = df_weekly['close']
