@@ -91,14 +91,7 @@ _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
 def _check_week_macd(code, klines, period='d') -> int:
     if period == 'd':
-        macd_info_d = MACD(close=klines['close'], window_fast=12, window_slow=26, window_sign=9)
-        macd_histogram = macd_info_d.macd_diff()  # MACD柱状线
-        macd_recent_3 = macd_histogram.iloc[-3:]
-        all_positive = (macd_recent_3 > 0).all()
-        # latest_dif_d = macd_info_d.macd().iloc[-1]  # DIF线
-        # latest_dea_d = macd_info_d.macd_signal().iloc[-1]  # DEA线
-        if all_positive:  # and (latest_dif_d < 0 and latest_dea_d ):
-            return 999
+
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         close_prices = df_weekly['close']
 
@@ -305,6 +298,13 @@ def analyze_an_stock(code, period='d') -> list:
     prices = check_pass_peak(df)
     if not prices:
         return []
+    # 判断日线MACD 是不是连续红柱
+    macd_info_d = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
+    macd_histogram = macd_info_d.macd_diff()  # MACD柱状线
+    macd_recent_3 = macd_histogram.iloc[-3:]
+    all_positive = (macd_recent_3 > 0).all()
+    if all_positive:  # and (latest_dif_d < 0 and latest_dea_d ):
+        return [code, prices[0], prices[1], analyze_date, period, 998]
 
     # 判断 新高 新低
     lowIndex = prices[0]
