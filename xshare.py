@@ -298,15 +298,6 @@ def analyze_an_stock(code, period='d') -> list:
     prices = check_pass_peak(df)
     if not prices:
         return []
-    # 判断日线MACD 是不是连续红柱
-    macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
-    macd_histogram = macd_info.macd_diff()  # MACD柱状线
-    macd_recent_3 = macd_histogram.iloc[-3:]
-    all_positive = (macd_recent_3 > 0).all
-    latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
-    latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
-    if all_positive and latest_dif_d < 0 and latest_dea_d < 0:
-        return [code, prices[0], prices[1], analyze_date, period, 998]
 
     # 判断 新高 新低
     lowIndex = prices[0]
@@ -316,13 +307,21 @@ def analyze_an_stock(code, period='d') -> list:
     high_price = df.iloc[highIndex]['high']
     low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
     high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
-    # print(low_list)
-    # print(high_list)
     minLow = low_list.min()
     maxHigh = high_list.max()
 
     if not (low_price == minLow and maxHigh == high_price):
         return []
+
+    # 判断日线MACD 是不是连续红柱
+    macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
+    macd_histogram = macd_info.macd_diff()  # MACD柱状线
+    macd_recent_3 = macd_histogram.iloc[-3:]
+    all_positive = (macd_recent_3 > 0).all()
+    latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
+    latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
+    if all_positive and (latest_dif_d < 0 and latest_dea_d < 0):
+        return [code, prices[0], prices[1], analyze_date, period, 998]
 
     # 形似 判断神似  返回神似的分数
     rcnt = _check_week_macd(code, df, period)
