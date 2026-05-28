@@ -91,14 +91,11 @@ _start_date_w, _end_date_w = _bs_get_trade_date('w')
 
 def _check_week_macd(code, klines, period='d') -> int:
     if period == 'd':
-
         df_weekly = bs_get_stock_hist(code, 'w', _start_date_w, _end_date_w)
         close_prices = df_weekly['close']
-
     else:
         close_prices = klines['close']
-        # 周线容忍两周
-        last_two = close_prices.iloc[-2:]
+        last_two = close_prices.iloc[-2:]  # 周线容忍两周
         close_prices = pd.concat([close_prices, last_two])
 
     macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
@@ -106,7 +103,7 @@ def _check_week_macd(code, klines, period='d') -> int:
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
-    return 999 if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else 0
+    return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -295,11 +292,7 @@ def check_low_high(df, stock_info, h_days, l_days):
     high_list = df['high'].iloc[highIndex - h_days + 1:highIndex + 1]
     minLow = low_list.min()
     maxHigh = high_list.max()
-
-    if not (low_price == minLow and maxHigh == high_price):
-        return False
-
-    return True
+    return low_price == minLow and maxHigh == high_price
 
 
 def analyze_an_stock(code, period='d') -> list:
@@ -316,9 +309,9 @@ def analyze_an_stock(code, period='d') -> list:
     stock_info = check_pass_peak(df)
     if not stock_info:
         return []
-    if check_low_high(df, stock_info, PASS_HIGH_DAYS, PASS_LOW_DAYS):
+    if not check_low_high(df, stock_info, PASS_HIGH_DAYS, PASS_LOW_DAYS):
         return []
-
+    ret_info = [code, stock_info[0], stock_info[1], analyze_date, period, 998]
     # 判断日线MACD 是不是连续红柱
     macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
     macd_histogram = macd_info.macd_diff()  # MACD柱状线
@@ -326,14 +319,13 @@ def analyze_an_stock(code, period='d') -> list:
     all_positive = (macd_recent_3 > 0).all()
     latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
     latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
-    if all_positive and (latest_dif_d < 0 and latest_dea_d < 0):
-        return [code, stock_info[0], stock_info[1], analyze_date, period, 998]
-
+    macd_down = latest_dif_d < 0 and latest_dea_d < 0
+    if all_positive and macd_down:
+        return ret_info
+    if not all_positive and macd_down:
+        if check_low_high(df, stock_info, 10, PASS_LOW_DAYS):
+            return ret_info
     # 形似 判断神似  返回神似的分数
-    rcnt = _check_week_macd(code, df, period)
-    if rcnt == 0:
-        return []
-
-    # 判断新低 新高天数
-    ret_list = [code, stock_info[0], stock_info[1], analyze_date, period, rcnt]
-    return ret_list
+    if _check_week_macd(code, df, period):
+        return ret_info
+    return []
