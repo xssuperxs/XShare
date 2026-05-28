@@ -87,7 +87,7 @@ def handle_results(results):
 if __name__ == '__main__':
     test = True
     if test:
-        print(back_test('sh.600173', '2026-05-26', period='d'))
+        print(back_test('sh.600726', '2026-02-06', period='w'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)

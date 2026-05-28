@@ -284,6 +284,24 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
     return ()
 
 
+def check_low_high(df, stock_info, h_days, l_days):
+    # 判断 新高 新低
+    lowIndex = stock_info[0]
+    highIndex = len(df) - 1
+
+    low_price = df.iloc[lowIndex]['low']
+    high_price = df.iloc[highIndex]['high']
+    low_list = df['low'].iloc[lowIndex - l_days + 1:lowIndex + 1]
+    high_list = df['high'].iloc[highIndex - h_days + 1:highIndex + 1]
+    minLow = low_list.min()
+    maxHigh = high_list.max()
+
+    if not (low_price == minLow and maxHigh == high_price):
+        return False
+
+    return True
+
+
 def analyze_an_stock(code, period='d') -> list:
     PASS_HIGH_DAYS = 6 if period == 'd' else 3
     PASS_LOW_DAYS = 21 if period == 'd' else 5
@@ -294,23 +312,11 @@ def analyze_an_stock(code, period='d') -> list:
         df = bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
 
     analyze_date = _end_date_d if period == 'd' else _end_date_w
-    # 判断 形似
-    prices = check_pass_peak(df)
-    if not prices:
+    # 判断 形似 返回一只股票的信息
+    stock_info = check_pass_peak(df)
+    if not stock_info:
         return []
-
-    # 判断 新高 新低
-    lowIndex = prices[0]
-    highIndex = len(df) - 1
-
-    low_price = df.iloc[lowIndex]['low']
-    high_price = df.iloc[highIndex]['high']
-    low_list = df['low'].iloc[lowIndex - PASS_LOW_DAYS + 1:lowIndex + 1]
-    high_list = df['high'].iloc[highIndex - PASS_HIGH_DAYS + 1:highIndex + 1]
-    minLow = low_list.min()
-    maxHigh = high_list.max()
-
-    if not (low_price == minLow and maxHigh == high_price):
+    if check_low_high(df, stock_info, PASS_HIGH_DAYS, PASS_LOW_DAYS):
         return []
 
     # 判断日线MACD 是不是连续红柱
@@ -321,7 +327,7 @@ def analyze_an_stock(code, period='d') -> list:
     latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
     latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
     if all_positive and (latest_dif_d < 0 and latest_dea_d < 0):
-        return [code, prices[0], prices[1], analyze_date, period, 998]
+        return [code, stock_info[0], stock_info[1], analyze_date, period, 998]
 
     # 形似 判断神似  返回神似的分数
     rcnt = _check_week_macd(code, df, period)
@@ -329,5 +335,5 @@ def analyze_an_stock(code, period='d') -> list:
         return []
 
     # 判断新低 新高天数
-    ret_list = [code, prices[0], prices[1], analyze_date, period, rcnt]
+    ret_list = [code, stock_info[0], stock_info[1], analyze_date, period, rcnt]
     return ret_list
