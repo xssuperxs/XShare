@@ -320,10 +320,8 @@ def analyze_an_stock(code, period='d') -> list:
     latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
     latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
     macd_down = latest_dif_d < 0 and latest_dea_d < 0
-    if all_positive and macd_down:
-        return ret_info
-    if not all_positive and macd_down:
-        if check_low_high(df, stock_info, 10, PASS_LOW_DAYS):
+    if macd_down:
+        if all_positive or check_low_high(df, stock_info, 10, PASS_LOW_DAYS):
             return ret_info
     # 形似 判断神似  返回神似的分数
     if _check_week_macd(code, df, period):
