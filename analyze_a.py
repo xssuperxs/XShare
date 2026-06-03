@@ -6,6 +6,14 @@ import datetime
 
 
 def back_test(code, end_date, period='d'):
+    if len(code) == 6:
+        code = code.strip()
+        if code.startswith(("60", "68", "688", "900")):  # 沪市
+            code = f"sh.{code}"
+        elif code.startswith(("00", "000", "002", "30")):  # 深市
+            code = f"sz.{code}"
+        else:
+            code = f"bj.{code}"
     # 解析结束日期
     end = datetime.datetime.strptime(end_date, '%Y-%m-%d')
 
@@ -87,7 +95,7 @@ def handle_results(results):
 if __name__ == '__main__':
     test = True
     if test:
-        print(back_test('sh.600726', '2026-02-06', period='w'))
+        print(back_test('603890', '2026-04-01', period='d'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
