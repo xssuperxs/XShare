@@ -2,8 +2,9 @@ import db
 import baostock as bs
 
 if __name__ == '__main__':
-    fpa = db.get_ana_text("1")
-    print(fpa)
+    print( db.check_save_success('2026-06-05'))
+
+    # print(fpa)
     # ret_data, date, period = db._get_stock_data('2025-08-08')
     # print(ret_data)
     # print(date)

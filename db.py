@@ -1,29 +1,79 @@
 import platform
 import sqlite3
 import os
+import time
 
 is_windows = platform.system() == "Windows"
 db_path = r'D:\Users\Administrator\Desktop\xshare.db' if is_windows else '/root/work/data/xshare.db'
 ana_res_dir = r'D:\Users\Administrator\Desktop' if is_windows else '/root/work/data'
+TABLE_NAME = 'as2'
 
 
 def save_ana_data(date, result_list, period):
+    if not result_list:
+        result_list = ['999999']
+
     result = ', '.join(str(item) for item in result_list)
+
+    MAX_RETRY = 3
+    RETRY_DELAY = 1  # 秒
+    for attempt in range(1, MAX_RETRY + 1):
+        conn = None
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                "INSERT OR REPLACE INTO as2 (ana_date, result, period) "
+                "VALUES (?, ?, ?)",
+                (date, result, period)
+            )
+            conn.commit()
+
+            if check_save_success(date):
+                break
+
+        except sqlite3.OperationalError as e:
+            # 锁表、磁盘满、数据库忙等
+            print(f"[尝试 {attempt}] 数据库操作失败: {e}")
+            time.sleep(RETRY_DELAY)
+
+        except sqlite3.Error as e:
+            # 其他 SQLite 错误（建表失败、SQL 错误）
+            print(f"SQLite 错误: {e}")
+            break  # 这类错误重试也没用
+
+        except Exception as e:
+            print(f"未知错误: {e}")
+            break
+
+        finally:
+            if conn:
+                conn.close()
+
+    else:
+        raise RuntimeError(f"写入数据库失败，ana_date={date}")
+
+
+def check_save_success(target_date):
     conn = None
     try:
-        # 连接数据库
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        # 把所有数据插入到 as2 库中
-        cursor.execute("""INSERT OR REPLACE INTO as2 (ana_date, result, period) VALUES (?, ?, ?)""",
-                       (date, result, period))
-        conn.commit()
-    except Exception as e:
-        # 其他未知错误
-        print(f"发生未知错误: {e}")
+        cursor.execute("""
+            SELECT 1
+            FROM as2
+            WHERE ana_date = ?
+            LIMIT 1
+        """, (target_date,))
+        exists = cursor.fetchone() is not None
+    except sqlite3.Error as e:
+        print(f"err :check_save_success: {e}")
+        return False
     finally:
         if conn:
             conn.close()
+    return exists
 
 
 def check_user(user_name):
@@ -93,22 +143,3 @@ def get_ana_text(date):
         if file_size > 0:
             return filepath
     return None
-#
-#    if period == 'w':
-#        filename = f"{last_date}_w.txt"
-#    filepath = os.path.join(ana_res_dir, filename)
-#    # 确保目录存在
-#    os.makedirs(ana_res_dir, exist_ok=True)
-#
-#    # 写入新文件
-#    with open(filepath, 'w', encoding='utf-8') as f:
-#        for item in ret_codes:
-#            f.write(f"{item}\n")
-#
-#    # 开始上传 上传成功后 删除文件
-#    res = we.send_wechat_message('LiuKeSheng', filepath, 'file')
-#    if res.get('errcode') == 0:
-#        if os.path.exists(filepath):
-#            os.remove(filepath)
-#    else:
-#        print('send_wechat_message error!')
