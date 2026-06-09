@@ -30,12 +30,31 @@ def _bs_get_trade_date(period: str = 'd') -> tuple[str, str]:
     return start_date, end_date
 
 
+def get_data(result):
+    """返回当前获取的全部结果
+    @return:DataFrame类型
+    """
+    if len(result.data) == 0:
+        return pd.DataFrame()
+    else:
+        # 组织返回数据
+        df = pd.DataFrame(result.data, columns=result.fields)
+        result.cur_row_num = len(result.data)
+        while (result.error_code == '0') & result.next():
+            # 获取一条记录，将记录合并在一起
+            temp_df = pd.DataFrame(result.data, columns=result.fields)
+            # df = df.append(temp_df, ignore_index=True)
+            df = pd.concat([df, temp_df], ignore_index=True)
+            result.cur_row_num = len(result.data)
+        return df
+
+
 def bs_get_stock_codes() -> list[str]:
     """
     :return: 返回提取的股票代码  带有sh.600519  sz.000353 这样格式的list
     """
     stock_list = bs.query_stock_basic()
-    stock_df = stock_list.get_data()
+    stock_df = get_data(stock_list)
     filtered_stocks = stock_df[
         (stock_df['type'].isin(['1'])) &  # 1 是股票  5 是ETF  2是指数
         (stock_df['status'] == '1') &  # 在交易

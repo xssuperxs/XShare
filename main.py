@@ -1,8 +1,10 @@
 import db
 import baostock as bs
+import xshare
 
 if __name__ == '__main__':
-    print( db.check_save_success('2026-06-05'))
+    xshare.bs_get_stock_codes()
+    # print( db.check_save_success('2026-06-05'))
 
     # print(fpa)
     # ret_data, date, period = db._get_stock_data('2025-08-08')
