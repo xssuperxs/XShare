@@ -315,7 +315,7 @@ def check_low_high(df, stock_info, h_days, l_days):
 
 
 def analyze_an_stock(code, period='d') -> list:
-    PASS_HIGH_DAYS = 6 if period == 'd' else 3
+    PASS_HIGH_DAYS = 5 if period == 'd' else 3
     PASS_LOW_DAYS = 21 if period == 'd' else 5
 
     if period == 'w':
