@@ -122,7 +122,14 @@ def _check_week_macd(code, klines, period='d') -> int:
     latest_dif = macd_info.macd().iloc[-1]  # DIF线
     latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
     latest_macd = macd_histogram.iloc[-1]
-    return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
+    # return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
+    if period == 'd':
+        if latest_dif > 0 or latest_dea > 0:
+            return True
+        else:
+            return False
+    else:
+        return True
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
@@ -331,17 +338,17 @@ def analyze_an_stock(code, period='d') -> list:
     if not check_low_high(df, stock_info, PASS_HIGH_DAYS, PASS_LOW_DAYS):
         return []
     ret_info = [code, stock_info[0], stock_info[1], analyze_date, period, 998]
-    # 判断日线MACD 是不是连续红柱
-    macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
-    macd_histogram = macd_info.macd_diff()  # MACD柱状线
-    macd_recent_3 = macd_histogram.iloc[-3:]
-    all_positive = (macd_recent_3 > 0).all()
-    latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
-    latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
-    macd_down = latest_dif_d < 0 and latest_dea_d < 0
-    if macd_down:
-        if all_positive or check_low_high(df, stock_info, 8, PASS_LOW_DAYS):
-            return ret_info
+    # # 判断日线MACD 是不是连续红柱
+    # macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
+    # macd_histogram = macd_info.macd_diff()  # MACD柱状线
+    # macd_recent_3 = macd_histogram.iloc[-3:]
+    # all_positive = (macd_recent_3 > 0).all()
+    # latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
+    # latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
+    # macd_down = latest_dif_d < 0 and latest_dea_d < 0
+    # if macd_down:
+    #     if all_positive or check_low_high(df, stock_info, 8, PASS_LOW_DAYS):
+    #         return ret_info
     # 形似 判断神似  返回神似的分数
     if _check_week_macd(code, df, period):
         return ret_info
