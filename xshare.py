@@ -124,10 +124,7 @@ def _check_week_macd(code, klines, period='d') -> int:
     latest_macd = macd_histogram.iloc[-1]
     # return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
     if period == 'd':
-        if latest_dif > 0 or latest_dea > 0:
-            return True
-        else:
-            return False
+        return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
     else:
         return True
 
