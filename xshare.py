@@ -338,7 +338,7 @@ def analyze_an_stock(code, period='d') -> list:
     # # 判断日线MACD 是不是连续红柱
     macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
     macd_histogram = macd_info.macd_diff()  # MACD柱状线
-    macd_recent_3 = macd_histogram.iloc[-5:]
+    macd_recent_3 = macd_histogram.iloc[-4:]
     all_positive = (macd_recent_3 > 0).all()
     latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
     latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
