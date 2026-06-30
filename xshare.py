@@ -335,18 +335,7 @@ def analyze_an_stock(code, period='d') -> list:
     if not check_low_high(df, stock_info, PASS_HIGH_DAYS, PASS_LOW_DAYS):
         return []
     ret_info = [code, stock_info[0], stock_info[1], analyze_date, period, 998]
-    # # # 判断日线MACD 是不是连续红柱
-    # macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
-    # macd_histogram = macd_info.macd_diff()  # MACD柱状线
-    # macd_recent_3 = macd_histogram.iloc[-4:]
-    # all_positive = (macd_recent_3 > 0).all()
-    # latest_dif_d = macd_info.macd().iloc[-1]  # DIF线
-    # latest_dea_d = macd_info.macd_signal().iloc[-1]  # DEA线
-    # macd_down = latest_dif_d < 0 and latest_dea_d < 0
-    # if macd_down:
-    #     if all_positive and check_low_high(df, stock_info, 13, 21):
-    #         return ret_info
-    # 形似 判断神似  返回神似的分数
+    # 判断周线趋势
     if _check_week_macd(code, df, period):
         return ret_info
     return []
