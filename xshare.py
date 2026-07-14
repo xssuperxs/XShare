@@ -333,6 +333,18 @@ def analyze_an_stock(code, period='d') -> list:
     if not check_low_high(df, stock_info, PASS_HIGH_DAYS, PASS_LOW_DAYS):
         return []
     ret_info = [code, stock_info[0], stock_info[1], analyze_date, period, 998]
+    if period == 'd':
+        macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
+        macd_histogram = macd_info.macd_diff()  # MACD柱状线
+        latest_dif = macd_info.macd().iloc[-1]  # DIF线
+        latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
+        # latest_macd = macd_histogram.iloc[-1]
+        last_5 = macd_histogram.tail(5)
+        if latest_dif < 0 and latest_dea < 0:
+            is_all_red = (last_5 > 0).all()
+            if is_all_red:
+                return ret_info
+
     # 判断周线趋势
     if _check_week_macd(code, df, period):
         return ret_info
