@@ -25,7 +25,7 @@ def back_test(code, end_date, period='d'):
 
     xshare._end_date_d = xshare._end_date_w = end_date
     xshare._start_date_d = xshare._start_date_w = start_date
-    return xshare.analyze_an_stock(code, period)
+    return xshare.analyze_an_stock(code, period, True)
 
 
 def analyze_A(period):

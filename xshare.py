@@ -316,7 +316,7 @@ def check_low_high(df, stock_info, h_days, l_days):
     return low_price == minLow and maxHigh == high_price
 
 
-def analyze_an_stock(code, period='d') -> list:
+def analyze_an_stock(code, period='d', test=False) -> list:
     PASS_HIGH_DAYS = 5 if period == 'd' else 3
     PASS_LOW_DAYS = 8 if period == 'd' else 5
 
@@ -325,7 +325,15 @@ def analyze_an_stock(code, period='d') -> list:
     else:
         df = bs_get_stock_hist(code, period, _start_date_d, _end_date_d)
 
+    if df is None or df.empty:
+        return []
+
     analyze_date = _end_date_d if period == 'd' else _end_date_w
+    if period == 'd' and not test:
+        last_amount = df.iloc[-1]['amount']
+        if last_amount < 100_000_000:
+            return []
+
     # 判断 形似 返回一只股票的信息
     stock_info = check_pass_peak(df)
     if not stock_info:
@@ -343,6 +351,8 @@ def analyze_an_stock(code, period='d') -> list:
         if latest_dif < 0 and latest_dea < 0:
             is_all_red = (last_5 > 0).all()
             if is_all_red:
+                if not check_low_high(df, stock_info, 13, 34):  # 判断新高天数 要多
+                    return []
                 return ret_info
 
     # 判断周线趋势
