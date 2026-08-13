@@ -369,6 +369,6 @@ def analyze_an_stock(code, period='d', test=False) -> list:
                 return []
             check_rst = check_low_high(df, stock_info, h_days, l_days)
         else:  # MACD 在水上
-            check_rst = check_low_high(df, stock_info, 10, 21)
+            check_rst = check_low_high(df, stock_info, 8, 21)
         return ret_info if check_rst else []
     return []
