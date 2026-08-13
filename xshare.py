@@ -350,6 +350,9 @@ def analyze_an_stock(code, period='d', test=False) -> list:
         return []
     ret_info = [code, stock_info[0], stock_info[1], analyze_date, period, 998]
 
+    # 判断周线趋势 如果MACD 水上返回成功
+    if _check_week_macd(code, df, period):
+        return ret_info
     # 在这里加MACD 全在水下的  要是红柱 新低要够低前100天
     if period == 'd':
         macd_info = MACD(close=df['close'], window_fast=12, window_slow=26, window_sign=9)
@@ -358,17 +361,13 @@ def analyze_an_stock(code, period='d', test=False) -> list:
         latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线
         latest_macd = macd_histogram.iloc[-1]
         last_5 = macd_histogram.tail(5)
+        is_all_red = (last_5 > 0).all()
         if latest_dif < 0 and latest_dea < 0:
-            if latest_macd > 0:
-                if check_low(df, stock_info, 90):
-                    return ret_info
-            is_all_red = (last_5 > 0).all()
-            if is_all_red:
-                if not check_low_high(df, stock_info, 13, 34):  # 判断新高天数 要多
-                    return []
-                return ret_info
+            if latest_macd < 0:
+                return []
+            h_days = 13 if is_all_red else 10
+            l_days = 34 if is_all_red else 90
+            check_rst = check_low_high(df, stock_info, h_days, l_days)
+            return ret_info if check_rst else []
 
-    # 判断周线趋势
-    if _check_week_macd(code, df, period):
-        return ret_info
     return []
