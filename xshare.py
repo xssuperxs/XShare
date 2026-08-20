@@ -264,7 +264,7 @@ def check_pass_peak(klines: pd.DataFrame) -> tuple:
 
             # 确定波段的最高点
             for nIndex in reversed(highs_index):
-                if nIndex <= curLowIndex:
+                if nIndex < curLowIndex:
                     highIndex = nIndex
                     break
             if highIndex == -1:
