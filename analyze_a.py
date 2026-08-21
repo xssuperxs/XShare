@@ -93,9 +93,9 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
-    test = False
+    test = True
     if test:
-        print(back_test('600613', '2026-07-14', period='d'))
+        print(back_test('000997', '2026-07-16', period='d'))
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
