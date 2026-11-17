@@ -118,16 +118,17 @@ def _check_week_macd(code, klines, period='d') -> int:
         # close_prices = pd.concat([close_prices, last_two])
     macd_info = MACD(close=close_prices, window_fast=12, window_slow=26, window_sign=9)
     macd_histogram = macd_info.macd_diff()  # MACD柱状线
-    latest_dif = macd_info.macd().iloc[-1]  # DIF线  快线
-    latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线 慢线
+    latest_dif = macd_info.macd().iloc[-1]  # DIF线  快线   白线
+    latest_dea = macd_info.macd_signal().iloc[-1]  # DEA线 慢线 东方财富 黄线
     latest_macd = macd_histogram.iloc[-1]
     latest_macd_pre = macd_histogram.iloc[-2]
     if period != 'd':
         return True
-    if latest_macd < latest_macd_pre:
-        return False
-
-    return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
+    if latest_dif < 0 or latest_dea < 0:
+        if latest_macd < latest_macd_pre:
+            return False
+    return True
+    # return True if latest_dif > 0 or latest_dea > 0 or latest_macd > 0 else False
 
 
 def check_real_bearish(kline: pd.DataFrame, body_threshold=0.70, shadow_tolerance=0.2,
