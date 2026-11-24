@@ -93,10 +93,24 @@ def handle_results(results):
 
 
 if __name__ == '__main__':
-    test = False
-    if test:
-        print(back_test('600613', '2026-07-14', period='d'))
-        # print(back_test('600327', '2026-08-14', period='w'))
+    if len(sys.argv) > 1 and sys.argv[1] == 't':
+        prompts = ["股票代码", "回测日期 yyyy-mm-dd", "周期 d 或 w"]
+        params = []  # 存放用户输入的参数
+        while True:
+            hint = prompts[len(params)]
+            user_input = input(f"请输入{hint}: ").strip()
+            if user_input == "q":
+                break
+            if user_input == "":
+                print(f"{hint}不能为空，请重新输入。")
+                continue
+            params.append(user_input)
+            if len(params) == len(prompts):
+                code = params[0]
+                date = params[1]
+                period = params[2]
+                print(back_test(code, date, period=period))
+                params = []
         sys.exit(0)
     p_period = 'd' if len(sys.argv) > 1 and sys.argv[1] == 'd' else 'w'
     print(p_period)
